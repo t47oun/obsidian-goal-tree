@@ -78,13 +78,10 @@ Deleting an item from Goal Tree moves its note and descendants to Obsidian trash
 
 ## Installation
 
-1. Extract the install ZIP.
-2. Copy the extracted `goal-tree` folder into `<your-vault>/.obsidian/plugins/`.
-3. Open **Settings → Community plugins**.
-4. Reload installed plugins if needed, then enable **Goal Tree**.
-5. Run **Goal Tree: Open overview** from the Command Palette or use its ribbon icon.
-
-When upgrading, replace `main.js`, `manifest.json`, and `styles.css`, then reload Obsidian. Your Markdown notes and Lists remain intact.
+1. Open **Obsidian → Settings → Community plugins**.
+2. Select **Browse** and search for **Goal Tree**.
+3. Select **Install**, then **Enable**.
+4. Open Goal Tree from the ribbon or run **Goal Tree: Open overview** from the Command Palette.
 
 ## Commands
 
