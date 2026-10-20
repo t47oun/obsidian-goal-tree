@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.4
+
+- Updated the minimum supported Obsidian version to 1.13.1 to match the APIs used by the plugin.
+- Removed the redundant plugin-name heading from Goal Tree settings.
+- Replaced the custom calculation heading with Obsidian's native settings heading component.
+- Added the complete source and test folders required for Community Plugins build verification.
+
 ## 0.12.3
 
 - Added manual ordering for personal List entries with a compact grip handle.

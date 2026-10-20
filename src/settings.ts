@@ -15,7 +15,6 @@ export class GoalTreeSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    new Setting(containerEl).setName("Goal Tree").setHeading();
 
     new Setting(containerEl)
       .setName("Goals folder")
@@ -127,11 +126,10 @@ export class GoalTreeSettingTab extends PluginSettingTab {
     this.addKanbanToggle("Show time", "Show specific, planned, and actual time on cards.", "kanbanShowTime");
     this.addKanbanToggle("Show due date", "Show deadline details on cards.", "kanbanShowDueDate");
 
-    const explanation = containerEl.createDiv({ cls: "goal-tree-settings-note" });
-    explanation.createEl("h4", { text: "Calculation rule" });
-    explanation.createEl("p", {
-      text: "Progress always uses child Severity: Low 1, Medium 2, High 3, and Critical 4. Completion and deadline health propagate through every ancestor."
-    });
+    new Setting(containerEl).setName("Calculation rule").setHeading();
+    new Setting(containerEl).setDesc(
+      "Progress always uses child Severity: Low 1, Medium 2, High 3, and Critical 4. Completion and deadline health propagate through every ancestor."
+    );
   }
 
   private addKanbanToggle(
