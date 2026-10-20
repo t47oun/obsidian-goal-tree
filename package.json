@@ -1,0 +1,28 @@
+{
+  "name": "obsidian-goal-tree",
+  "version": "0.12.3",
+  "description": "A Markdown-native system for goals, projects, tasks, habits, calendars, graphs, and personal lists.",
+  "author": "Muhammad Tahoun",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "check": "npm run build && npm test"
+  },
+  "keywords": [
+    "obsidian",
+    "goals",
+    "tasks",
+    "planning",
+    "productivity"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.15.17",
+    "esbuild": "0.25.5",
+    "obsidian": "^1.13.1",
+    "typescript": "^5.8.3"
+  }
+}
