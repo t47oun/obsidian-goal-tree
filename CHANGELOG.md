@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.5
+
+- Fixed List-to-Goal-Tree promotion failing when Obsidian had not indexed the newly created Markdown note yet.
+- Prevented users from retrying a successful creation only because its List link was checked too early.
+
 ## 0.12.4
 
 - Updated the minimum supported Obsidian version to 1.13.1 to match the APIs used by the plugin.

@@ -199,13 +199,23 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
   async createGoalFromList(listId: string, itemId: string, input: NewGoalInput): Promise<void> {
     this.validateGoalFields(input);
     const file = await this.repository.create(input);
-    const node = this.repository.load(todayIso()).all.find((candidate) => candidate.id === file.path);
+    const node = await this.waitForCreatedGoal(file.path);
     if (!node) throw new Error("The created Goal Tree item could not be linked.");
     const item = this.listItem(listId, itemId);
     item.linkedGoalId = node.stableId;
     await this.persistData();
     await this.refreshAll();
     new Notice(`Added “${item.title}” to Goal Tree.`);
+  }
+
+  private async waitForCreatedGoal(path: string, timeoutMs = 5_000): Promise<GoalNode | undefined> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const node = this.repository.load(todayIso()).all.find((candidate) => candidate.id === path);
+      if (node) return node;
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+    }
+    return this.repository.load(todayIso()).all.find((candidate) => candidate.id === path);
   }
 
   async unlinkListItem(listId: string, itemId: string): Promise<void> {
