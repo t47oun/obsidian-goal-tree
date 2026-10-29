@@ -26,22 +26,38 @@ import {
 
 export interface GoalTreeSettings {
   goalsFolder: string;
+  defaultView: "overview" | "today" | "tree" | "graph" | "calendar" | "kanban" | "lists" | "review";
+  interfaceDensity: "comfortable" | "compact";
   defaultSeverity: GoalSeverity;
   syncCalculatedProperties: boolean;
   todayIncludeAvailable: boolean;
   weekStartsOn: "sunday" | "monday" | "saturday";
+  workdays: number[];
+  timeFormat: "12-hour" | "24-hour";
   kanbanDefaultScope: KanbanScope;
   kanbanDefaultDisplay: WorkDisplayMode;
+  kanbanShowProjects: boolean;
+  kanbanShowTasks: boolean;
+  kanbanShowSubtasks: boolean;
+  kanbanGroupByParent: boolean;
+  kanbanCompletedOrder: "newest" | "oldest" | "manual";
+  kanbanMobileMode: "swipe" | "stack";
   kanbanShowCompleted: boolean;
   kanbanShowUnscheduled: boolean;
   kanbanShowParentPath: boolean;
   kanbanShowSeverity: boolean;
   kanbanShowTime: boolean;
   kanbanShowDueDate: boolean;
+  graphMotion: boolean;
+  graphLabels: "selected" | "hover" | "all";
+  graphSpacing: "compact" | "comfortable";
+  listsFinishedOrder: "manual" | "newest" | "oldest";
+  confirmBeforeDelete: boolean;
 }
 
 export interface GoalFields {
   title: string;
+  notes?: string;
   type: GoalType;
   parentId?: string;
   start?: string;
@@ -61,6 +77,7 @@ export interface GoalFields {
   recurrenceKey?: string;
   recurrenceOrdinal?: number;
   seriesId?: string;
+  order?: number;
 }
 
 export type NewGoalInput = GoalFields;
@@ -116,6 +133,7 @@ export class GoalRepository {
         id: source.file.path,
         stableId: source.stableId,
         title: textValue(frontmatter?.["goal-title"]) || source.file.basename,
+        notes: optionalText(frontmatter?.["goal-notes"]),
         type,
         parentId: linkedParent ?? (stableParent ? pathByStableId.get(stableParent) : undefined),
         manualStatus: manualStatus(frontmatter?.["goal-status"]),
@@ -138,7 +156,8 @@ export class GoalRepository {
         recurrenceKey: optionalText(frontmatter?.["goal-recurrence-key"]),
         recurrenceOrdinal: optionalPositiveInteger(frontmatter?.["goal-recurrence-ordinal"]),
         seriesId: optionalText(frontmatter?.["goal-series-id"]),
-        archived: isEnabled(frontmatter?.["goal-archived"])
+        archived: isEnabled(frontmatter?.["goal-archived"]),
+        order: optionalNonNegative(frontmatter?.["goal-order"])
       };
     });
 
@@ -234,6 +253,7 @@ export class GoalRepository {
 
     await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
       frontmatter["goal-title"] = input.title.trim();
+      setOptional(frontmatter, "goal-notes", input.notes?.trim() || undefined);
       frontmatter["goal-type"] = input.type;
       if (input.type === "area") delete frontmatter["goal-severity"];
       else frontmatter["goal-severity"] = normalizeSeverity(input.severity);
@@ -311,6 +331,7 @@ export class GoalRepository {
         frontmatter["goal-series-id"] = seriesId;
       }
       delete frontmatter["goal-weight"];
+      setOptionalNumber(frontmatter, "goal-order", input.order ?? node.order);
     });
     if (recurrenceChanged && node.seriesId) {
       for (const key of [...this.generatedRecurrenceKeys]) {
@@ -325,6 +346,7 @@ export class GoalRepository {
         if (!memberFile) continue;
         await this.app.fileManager.processFrontMatter(memberFile, (frontmatter) => {
           frontmatter["goal-title"] = input.title.trim();
+          setOptional(frontmatter, "goal-notes", input.notes?.trim() || undefined);
           frontmatter["goal-type"] = input.type;
           frontmatter["goal-severity"] = normalizeSeverity(input.severity);
           deleteLegacyProgressProperties(frontmatter);
@@ -351,6 +373,7 @@ export class GoalRepository {
             frontmatter["goal-series-id"] = node.seriesId;
           }
           delete frontmatter["goal-weight"];
+          setOptionalNumber(frontmatter, "goal-order", input.order ?? member.order);
         });
       }
     }
@@ -368,6 +391,7 @@ export class GoalRepository {
   async duplicate(node: GoalNode): Promise<TFile> {
     return this.create({
       title: `${node.title} Copy`,
+      notes: node.notes,
       type: node.type,
       parentId: node.parentId,
       start: node.start,
@@ -385,6 +409,35 @@ export class GoalRepository {
       recurrenceStart: node.recurrenceStart,
       recurrenceEnd: node.recurrenceEnd
     });
+  }
+
+  async updateNotes(node: GoalNode, notes: string): Promise<void> {
+    const file = this.fileForNode(node);
+    if (!file) throw new Error("The item note could not be found.");
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      setOptional(frontmatter, "goal-notes", notes.trim() || undefined);
+    });
+  }
+
+  async reorder(node: GoalNode, target: GoalNode, placeAfter: boolean): Promise<void> {
+    if (node.stableId === target.stableId) return;
+    const forest = this.load(localDateIso());
+    const ordered = [...forest.all].sort(compareStoredOrder);
+    const movedIndex = ordered.findIndex((candidate) => candidate.stableId === node.stableId);
+    const targetIndexBeforeMove = ordered.findIndex((candidate) => candidate.stableId === target.stableId);
+    if (movedIndex < 0 || targetIndexBeforeMove < 0) return;
+    const [moved] = ordered.splice(movedIndex, 1);
+    const targetIndex = ordered.findIndex((candidate) => candidate.stableId === target.stableId);
+    ordered.splice(targetIndex + (placeAfter ? 1 : 0), 0, moved);
+    for (let index = 0; index < ordered.length; index += 1) {
+      const candidate = ordered[index];
+      if (candidate.order === index) continue;
+      const file = this.fileForNode(candidate);
+      if (!file) continue;
+      await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+        frontmatter["goal-order"] = index;
+      });
+    }
   }
 
   async setStatus(node: GoalNode, status: ManualStatus): Promise<void> {
@@ -418,6 +471,7 @@ export class GoalRepository {
     const shift = daysBetween(base, next);
     return this.create({
       title: node.title,
+      notes: node.notes,
       type: node.type,
       parentId: node.parentId,
       start: shiftIsoDate(node.start, shift),
@@ -475,6 +529,7 @@ export class GoalRepository {
         try {
           await this.create({
             title: template.title,
+            notes: template.notes,
             type: template.type,
             parentId: template.parentId,
             start: plan.start,
@@ -1057,6 +1112,8 @@ function createGoalMarkdown(
   ];
   if (input.parentLink) properties.push(`goal-parent: ${yamlString(input.parentLink)}`);
   if (input.parentStableId) properties.push(`goal-parent-id: ${yamlString(input.parentStableId)}`);
+  if (input.notes?.trim()) properties.push(`goal-notes: ${yamlString(input.notes.trim())}`);
+  if (input.order !== undefined) properties.push(`goal-order: ${Math.max(0, Math.round(input.order))}`);
   if (hasPlanningDates(input.type) && input.start) properties.push(`goal-start: ${input.start}`);
   if (isWorkType(input.type) && input.scheduled) properties.push(`goal-scheduled: ${input.scheduled}`);
   if (isWorkType(input.type) && input.scheduledStartTime) properties.push(`goal-start-time: ${input.scheduledStartTime}`);
@@ -1088,9 +1145,16 @@ function createGoalMarkdown(
     `# ${input.title}`,
     "",
     "## Notes",
-    ""
+    "",
+    input.notes?.trim() ?? ""
   );
   return properties.join("\n");
+}
+
+function compareStoredOrder(a: GoalNode, b: GoalNode): number {
+  const aOrder = Number.isFinite(a.order) ? a.order as number : Number.MAX_SAFE_INTEGER;
+  const bOrder = Number.isFinite(b.order) ? b.order as number : Number.MAX_SAFE_INTEGER;
+  return aOrder - bOrder || a.title.localeCompare(b.title);
 }
 
 function setOptional(frontmatter: Record<string, unknown>, key: string, value: string | undefined): void {

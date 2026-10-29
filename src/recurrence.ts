@@ -65,7 +65,7 @@ export function planRecurringOccurrences(
   const selectedDays = rule === "daily"
     ? [0, 1, 2, 3, 4, 5, 6]
     : rule === "weekdays"
-      ? [0, 1, 2, 3, 4]
+      ? normalizeWeekdays(weekdays).length > 0 ? normalizeWeekdays(weekdays) : [0, 1, 2, 3, 4]
       : normalizeWeekdays(weekdays);
   if (rule !== "weekly-target") {
     if (selectedDays.length === 0) return [];

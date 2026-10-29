@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.13.0
+
+- Added one unified Obsidian-native interface across Overview, Today, Tree, Graph, Calendar, Kanban, Lists, and Review.
+- Added a shared item inspector on desktop and tablet, with a responsive bottom sheet on phones.
+- Added inline note viewing and editing while keeping the full Markdown note one click away.
+- Kept Life Areas permanent and neutral: no dates, status, severity, completion, or risk color.
+- Redesigned Graph with compact nodes, curved connections, selected-branch emphasis, configurable labels and spacing, smoother zoom, touch pinch, pan, and drag.
+- Added combinable Project, Task, and Subtask filters to Kanban, optional parent grouping, card ordering, mobile swipe/stack layouts, and three execution columns only.
+- Added drag-to-reschedule for existing Calendar events in Month, Week, and Day views.
+- Simplified Review to **Needs attention** and **Completed work**, with period and type filters plus clear health explanations.
+- Expanded starter Lists with People of Interest, Documentaries, and Podcasts.
+- Added configurable finished-list ordering while always keeping finished entries below unfinished entries.
+- Restricted List promotion to Goal, Project, Task, or Subtask and preserved two-way completion synchronization.
+- Reorganized settings into General, Planning, Kanban, Graph, Lists, and Data sections.
+- Added configurable default view, interface density, Sunday–Thursday workdays, time format, graph behavior, delete confirmation, and responsive Kanban behavior.
+- Removed planned-duration controls from the editor. Fixed meeting times remain supported and calculate their duration internally for compatibility.
+- Added durable item notes and stable manual ordering properties without breaking existing Markdown data.
+- Improved mobile and tablet layouts, touch targets, list dragging, settings navigation, modal alignment, and inspector behavior.
+- Expanded automated tests for default Lists, finished ordering modes, and stored hierarchy order.
+
 ## 0.12.5
 
 - Fixed List-to-Goal-Tree promotion failing when Obsidian had not indexed the newly created Markdown note yet.

@@ -26,6 +26,7 @@ function goal(overrides: Partial<GoalInput> & Pick<GoalInput, "id" | "title">): 
     scheduled: overrides.scheduled,
     due: overrides.due,
     completedAt: overrides.completedAt,
+    order: overrides.order,
     recurrence: overrides.recurrence ?? "none",
     recurrenceInterval: overrides.recurrenceInterval ?? 1,
     archived: overrides.archived
@@ -65,6 +66,15 @@ test("severity controls a child's direct influence", () => {
   ], TODAY);
   assert.equal(forest.roots[0].metrics.progress, 25);
   assert.equal(forest.roots[0].metrics.status, "in-progress");
+});
+
+test("stored order controls sibling presentation before title sorting", () => {
+  const forest = buildGoalForest([
+    goal({ id: "area", title: "Area", type: "area" }),
+    goal({ id: "later", title: "A title", parentId: "area", order: 20 }),
+    goal({ id: "first", title: "Z title", parentId: "area", order: 10 })
+  ], TODAY);
+  assert.deepEqual(forest.roots[0].children.map((node) => node.id), ["first", "later"]);
 });
 
 test("an in-progress child makes every ancestor in progress even at zero percent", () => {

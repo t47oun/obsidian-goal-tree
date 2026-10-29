@@ -24,7 +24,10 @@ export const DEFAULT_LIST_TITLES = [
   "Books",
   "Courses",
   "Certifications",
-  "Articles"
+  "Articles",
+  "People of Interest",
+  "Documentaries",
+  "Podcasts"
 ] as const;
 
 export function normalizeLists(value: unknown): GoalList[] {
@@ -71,11 +74,19 @@ export function createDefaultLists(): GoalList[] {
   }));
 }
 
-export function sortedListItems(items: GoalListItem[]): GoalListItem[] {
-  return [
-    ...items.filter((item) => item.status !== "finished"),
-    ...items.filter((item) => item.status === "finished")
-  ];
+export function sortedListItems(
+  items: GoalListItem[],
+  finishedOrder: "manual" | "newest" | "oldest" = "manual"
+): GoalListItem[] {
+  const active = items.filter((item) => item.status !== "finished");
+  const finished = items.filter((item) => item.status === "finished");
+  if (finishedOrder !== "manual") {
+    finished.sort((left, right) => {
+      const comparison = (left.completedAt ?? left.createdAt).localeCompare(right.completedAt ?? right.createdAt);
+      return finishedOrder === "newest" ? -comparison : comparison;
+    });
+  }
+  return [...active, ...finished];
 }
 
 export function reorderListItems(

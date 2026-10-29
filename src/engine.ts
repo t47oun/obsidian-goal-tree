@@ -33,6 +33,8 @@ export interface GoalInput {
   /** Permanent identity stored in goal-id. */
   stableId: string;
   title: string;
+  /** Short note shown and edited inside Goal Tree. The Markdown note remains the full record. */
+  notes?: string;
   type: GoalType;
   parentId?: string;
   manualStatus: ManualStatus;
@@ -61,6 +63,8 @@ export interface GoalInput {
   recurrenceOrdinal?: number;
   seriesId?: string;
   archived?: boolean;
+  /** Stable user-defined ordering used by Tree and Kanban. */
+  order?: number;
 }
 
 export interface GoalMetrics {
@@ -272,6 +276,9 @@ function createsCycle(id: string, parentId: string, inputById: Map<string, GoalI
 
 function sortNodes(nodes: GoalNode[]): void {
   nodes.sort((a, b) => {
+    const aOrder = Number.isFinite(a.order) ? a.order as number : Number.MAX_SAFE_INTEGER;
+    const bOrder = Number.isFinite(b.order) ? b.order as number : Number.MAX_SAFE_INTEGER;
+    if (aOrder !== bOrder) return aOrder - bOrder;
     const typeDifference = TYPE_ORDER[a.type] - TYPE_ORDER[b.type];
     if (typeDifference !== 0) return typeDifference;
     const aDate = a.scheduled ?? a.due;

@@ -4,7 +4,10 @@ import { createDefaultLists, normalizeLists, reorderListItems, sortedListItems }
 
 test("default personal lists are created for a new installation", () => {
   const titles = createDefaultLists().map((list) => list.title);
-  assert.deepEqual(titles, ["Movies", "Technical Books", "Books", "Courses", "Certifications", "Articles"]);
+  assert.deepEqual(titles, [
+    "Movies", "Technical Books", "Books", "Courses", "Certifications", "Articles",
+    "People of Interest", "Documentaries", "Podcasts"
+  ]);
 });
 
 test("finished list items move below active items while manual order is preserved", () => {
@@ -35,6 +38,16 @@ test("dragging cannot move an active item into the finished section", () => {
   assert.deepEqual(reorderListItems(items, "active", "done"), items);
 });
 
+test("finished items support newest and oldest completion ordering", () => {
+  const items = [
+    { id: "older", title: "Older", status: "finished" as const, completedAt: "2026-09-01", createdAt: "2026-01-01" },
+    { id: "active", title: "Active", status: "not-finished" as const, createdAt: "2026-01-02" },
+    { id: "newer", title: "Newer", status: "finished" as const, completedAt: "2026-09-30", createdAt: "2026-01-03" }
+  ];
+  assert.deepEqual(sortedListItems(items, "newest").map((item) => item.id), ["active", "newer", "older"]);
+  assert.deepEqual(sortedListItems(items, "oldest").map((item) => item.id), ["active", "older", "newer"]);
+});
+
 test("invalid saved list data falls back to the starter lists", () => {
-  assert.equal(normalizeLists({ invalid: true }).length, 6);
+  assert.equal(normalizeLists({ invalid: true }).length, 9);
 });

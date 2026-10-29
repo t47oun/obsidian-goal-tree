@@ -44,6 +44,13 @@ test("weekday recurrence means Sunday through Thursday", () => {
   ]);
 });
 
+test("weekday recurrence follows configured workdays when provided", () => {
+  const plans = planRecurringOccurrences(
+    "custom-workweek", "weekdays", "2026-09-06", "2026-09-06", undefined, [1, 3, 5], undefined, "sunday"
+  );
+  assert.deepEqual(plans.map((plan) => plan.scheduled), ["2026-09-07", "2026-09-09", "2026-09-11"]);
+});
+
 test("monthly recurrence clamps to the last valid day", () => {
   assert.equal(nextRecurrenceDate("2026-01-31", "monthly", 1), "2026-02-28");
 });

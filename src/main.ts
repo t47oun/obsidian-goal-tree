@@ -33,18 +33,33 @@ import {
 
 const DEFAULT_SETTINGS: GoalTreeSettings = {
   goalsFolder: "Goal Tree",
+  defaultView: "overview",
+  interfaceDensity: "comfortable",
   defaultSeverity: "medium",
   syncCalculatedProperties: true,
   todayIncludeAvailable: true,
   weekStartsOn: "sunday",
+  workdays: [0, 1, 2, 3, 4],
+  timeFormat: "12-hour",
   kanbanDefaultScope: "weekly",
   kanbanDefaultDisplay: "hierarchy",
+  kanbanShowProjects: true,
+  kanbanShowTasks: true,
+  kanbanShowSubtasks: true,
+  kanbanGroupByParent: true,
+  kanbanCompletedOrder: "newest",
+  kanbanMobileMode: "swipe",
   kanbanShowCompleted: true,
   kanbanShowUnscheduled: false,
   kanbanShowParentPath: true,
   kanbanShowSeverity: true,
   kanbanShowTime: true,
-  kanbanShowDueDate: true
+  kanbanShowDueDate: true,
+  graphMotion: true,
+  graphLabels: "selected",
+  graphSpacing: "compact",
+  listsFinishedOrder: "manual",
+  confirmBeforeDelete: true
 };
 
 interface StoredData extends Partial<GoalTreeSettings> {
@@ -268,6 +283,17 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
     new Notice(`Updated “${input.title}”.`);
   }
 
+  async updateGoalNotes(node: GoalNode, notes: string): Promise<void> {
+    await this.repository.updateNotes(node, notes);
+    await this.refreshAll();
+    new Notice("Notes saved.");
+  }
+
+  async reorderGoal(node: GoalNode, target: GoalNode, placeAfter = false): Promise<void> {
+    await this.repository.reorder(node, target, placeAfter);
+    await this.refreshAll();
+  }
+
   async duplicateGoal(node: GoalNode): Promise<void> {
     await this.repository.duplicate(node);
     await this.refreshAll();
@@ -436,7 +462,7 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
     if (input.recurrenceEnd && repeatStart && input.recurrenceEnd < repeatStart) {
       throw new Error("Repeat until must be on or after the start date.");
     }
-    if (input.recurrence === "specific-weekdays" && (input.recurrenceWeekdays?.length ?? 0) === 0) {
+    if ((input.recurrence === "specific-weekdays" || input.recurrence === "weekdays") && (input.recurrenceWeekdays?.length ?? 0) === 0) {
       throw new Error("Select at least one weekday.");
     }
     if (input.recurrence === "weekly-target" && (!input.recurrenceTarget || input.recurrenceTarget < 1)) {
@@ -480,6 +506,10 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
     delete merged.pomodoroState;
     delete merged.workTimerState;
     delete merged.focusSessions;
+    merged.workdays = Array.isArray(merged.workdays)
+      ? [...new Set(merged.workdays.filter((value): value is number => Number.isInteger(value) && value >= 0 && value <= 6))]
+      : [...DEFAULT_SETTINGS.workdays];
+    if (merged.workdays.length === 0) merged.workdays = [...DEFAULT_SETTINGS.workdays];
     this.settings = merged;
     this.lists = normalizeLists(saved?.lists);
   }

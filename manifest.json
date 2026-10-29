@@ -1,7 +1,7 @@
 {
   "id": "goal-tree",
   "name": "Goal Tree",
-  "version": "0.12.5",
+  "version": "0.13.0",
   "minAppVersion": "1.13.1",
   "description": "Manage goals, projects, tasks, habits, meetings, calendars, graphs, and personal lists.",
   "author": "Muhammad Tahoun",

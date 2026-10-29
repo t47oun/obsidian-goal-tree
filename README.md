@@ -24,28 +24,30 @@ Areas are permanent contexts such as Work, Family, or Self Development. They hav
 | --- | --- |
 | Overview | Current goal progress, today totals, life balance, and attention summary |
 | Today | Planned, overdue, active, available, unscheduled, and completed actions |
-| Tree | Full hierarchy with progress, severity, health, notes, and direct actions |
-| Graph | Responsive force-directed connections with animated motion, dragging, Area/status/depth filters, zoom, and pan |
-| Calendar | Month, Week, and Day planning with Anytime, timed, Due, and unscheduled work |
-| Kanban | Daily, Weekly, Monthly, Quarterly, and Yearly execution boards |
-| Lists | Movies, books, courses, certifications, articles, and custom lists |
-| Review | Completed work, habits, overdue and at-risk work, and Area summaries |
+| Tree | Full hierarchy with progress, severity, health, notes, reparenting, and direct actions |
+| Graph | Responsive force graph with compact nodes, connected-branch emphasis, smooth zoom, pan, pinch, and dragging |
+| Calendar | Interactive Month, Week, and Day planning with draggable Anytime, timed, Due, and unscheduled work |
+| Kanban | Daily, Weekly, Monthly, Quarterly, and Yearly boards with combinable Project/Task/Subtask filters |
+| Lists | Movies, books, courses, certifications, articles, people, documentaries, podcasts, and custom lists |
+| Review | Focused Needs attention and Completed work modes with type and period filters |
+
+Selecting an item in any view opens the same inspector. On desktop and tablet it appears at the right; on phones it becomes a bottom sheet. The inspector shows context, progress, health explanation, dates, recurrence, status controls, inline notes, Edit, Open note, and Delete.
 
 ## Habits and repeating work
 
-A habit is a Task or Subtask with **Repeating task** enabled, so the hierarchy stays simple. Repeat choices include every day, Sunday–Thursday, selected weekdays, a flexible number of times per week, every week, and every month. Preferred-day chips run from Sunday through Saturday. A repeat can continue until manually stopped or until a selected date.
+A habit is a Task or Subtask with **Repeating task** enabled, so the hierarchy stays simple. Repeat choices include every day, configured Workdays (Sunday–Thursday by default), selected weekdays, a flexible number of times per week, every week, and every month. Preferred-day chips run from Sunday through Saturday. A repeat can continue until manually stopped or until a selected date.
 
 Each occurrence has its own completion status. Review shows completed versus expected habit occurrences.
 
 ## Meetings and scheduling
 
-Mark any Task or Subtask as a Meeting. It remains under its Project and can have a planned day, start time, end time, duration, notes, severity, and status.
+Mark any Task or Subtask as a Meeting. It remains under its Project and can have a planned day, start time, end time, notes, severity, and status.
 
-Calendar Week is the default planning view and starts on Sunday. Work may be scheduled for Anytime or a specific time. Due dates remain visually separate from planned work. Unscheduled Tasks and Subtasks can be dragged to a day on desktop or tablet; on a phone, open the item and choose its planned day.
+Calendar supports Month, Week, and Day planning and starts weeks on Sunday by default. Work may be scheduled for Anytime or a specific time. Due dates remain visually separate from planned work. Both unscheduled work and existing scheduled events can be dragged to another day.
 
 ## Lists
 
-New installations include Movies, Technical Books, Books, Courses, Certifications, and Articles. You can create more lists.
+New installations include Movies, Technical Books, Books, Courses, Certifications, Articles, People of Interest, Documentaries, and Podcasts. You can create more lists.
 
 A list item can remain a simple reference or be promoted to a Goal, Project, Task, or Subtask. Completion is synchronized in both directions. Finished items remain visible below unfinished items and are crossed out with their completion date.
 
@@ -63,7 +65,8 @@ The plugin is not desktop-only and is designed for Obsidian mobile and tablet:
 
 - touch-sized primary controls;
 - horizontally scrollable tabs and weekly boards;
-- stacked Lists, Calendar, and Review layouts;
+- a shared item inspector that becomes a bottom sheet on phones;
+- stacked Lists, Calendar, Review, and optional Kanban layouts;
 - responsive create/edit dialogs;
 - touch pan and zoom in Graph;
 - Day Calendar for narrow screens.
@@ -72,7 +75,7 @@ For the simplest phone workflow, use Today, Day Calendar, Lists, and Review. Use
 
 ## Markdown storage
 
-Goal Tree items are normal Markdown notes inside the configured Goal Tree folder. Each note receives a permanent `goal-id`, readable parent link, type, status, severity, dates, recurrence fields, and calculated roll-up properties. Click an item title to open and edit its note body.
+Goal Tree items are normal Markdown notes inside the configured Goal Tree folder. Each note receives a permanent `goal-id`, readable parent link, type, status, severity, dates, recurrence fields, short notes, stable ordering, and calculated roll-up properties. Select an item to inspect or edit its short note, then choose **Open note** for the full Markdown body.
 
 Deleting an item from Goal Tree moves its note and descendants to Obsidian trash. Completed work remains visible until you archive it. Personal Lists are stored in the plugin's local Obsidian data.
 
@@ -99,12 +102,12 @@ Deleting an item from Goal Tree moves its note and descendants to Obsidian trash
 
 ## Settings
 
-- Goal Tree folder
-- Default severity
-- Calculated-property synchronization
-- Today availability behavior
-- First day of week
-- Kanban period, item level, and visible card details
+- **General:** Goal Tree folder, default view, interface density, and default severity.
+- **Planning:** first day of week, workdays, time format, and Today availability.
+- **Kanban:** default period, combined item types, parent grouping, visible details, completed ordering, and mobile layout.
+- **Graph:** motion, label behavior, and spacing.
+- **Lists:** finished-item ordering.
+- **Data:** calculated-property synchronization and delete confirmation.
 
 ## Development
 
