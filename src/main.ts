@@ -22,6 +22,7 @@ import {
   reorderListItems,
   randomId as listRandomId
 } from "./lists";
+import { GoalListRepository } from "./list-repository";
 import { GoalTreeSettingTab } from "./settings";
 import {
   GoalTreeHost,
@@ -74,14 +75,22 @@ interface StoredData extends Partial<GoalTreeSettings> {
 export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
   settings: GoalTreeSettings = { ...DEFAULT_SETTINGS };
   private repository!: GoalRepository;
+  private listRepository!: GoalListRepository;
   private refreshTimer?: number;
   private refreshing = false;
   private refreshAgain = false;
   private lists: GoalList[] = [];
+  private legacyLists?: GoalList[];
+  private listsReady = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
     this.repository = new GoalRepository(this.app, () => this.settings);
+    this.listRepository = new GoalListRepository(this.app, () => this.settings.goalsFolder);
+    this.lists = await this.listRepository.load(this.legacyLists);
+    this.listsReady = true;
+    this.legacyLists = undefined;
+    await this.persistData();
 
     this.registerView(VIEW_TYPE_GOAL_TREE, (leaf) => new GoalTreeView(leaf, this));
     this.addRibbonIcon("network", "Open Goal Tree", () => void this.activateView());
@@ -248,6 +257,7 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
 
     this.refreshing = true;
     try {
+      this.lists = await this.listRepository.load();
       const forest = this.loadSnapshot();
       const generated = await this.repository.ensureRecurringOccurrences(forest, todayIso());
       if (generated > 0) this.refreshAgain = true;
@@ -506,12 +516,15 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
     delete merged.pomodoroState;
     delete merged.workTimerState;
     delete merged.focusSessions;
+    delete merged.lists;
     merged.workdays = Array.isArray(merged.workdays)
       ? [...new Set(merged.workdays.filter((value): value is number => Number.isInteger(value) && value >= 0 && value <= 6))]
       : [...DEFAULT_SETTINGS.workdays];
     if (merged.workdays.length === 0) merged.workdays = [...DEFAULT_SETTINGS.workdays];
     this.settings = merged;
-    this.lists = normalizeLists(saved?.lists);
+    this.legacyLists = Array.isArray(saved?.lists)
+      ? saved.lists.length === 0 ? [] : normalizeLists(saved.lists)
+      : undefined;
   }
 
   private listItem(listId: string, itemId: string): GoalListItem {
@@ -563,10 +576,14 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
   }
 
   private async persistData(): Promise<void> {
-    await this.saveData({
-      ...this.settings,
-      lists: this.lists
-    });
+    if (!this.listsReady) {
+      await this.saveData({ ...this.settings });
+      return;
+    }
+    await Promise.all([
+      this.saveData({ ...this.settings }),
+      this.listRepository.sync(this.lists)
+    ]);
   }
 }
 

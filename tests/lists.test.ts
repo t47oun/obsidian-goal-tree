@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDefaultLists, normalizeLists, reorderListItems, sortedListItems } from "../src/lists.ts";
+import {
+  createDefaultLists,
+  normalizeLists,
+  parseGoalList,
+  parseListItems,
+  reorderListItems,
+  serializeGoalList,
+  sortedListItems
+} from "../src/lists.ts";
 
 test("default personal lists are created for a new installation", () => {
   const titles = createDefaultLists().map((list) => list.title);
@@ -50,4 +58,40 @@ test("finished items support newest and oldest completion ordering", () => {
 
 test("invalid saved list data falls back to the starter lists", () => {
   assert.equal(normalizeLists({ invalid: true }).length, 9);
+});
+
+test("list Markdown round-trips ids, statuses, notes, links, and manual order", () => {
+  const list = {
+    id: "list-movies",
+    title: "Movies & Series",
+    createdAt: "2026-10-30T10:00:00.000",
+    items: [
+      {
+        id: "item-one",
+        title: "Arrival",
+        status: "in-progress" as const,
+        url: "https://example.com/arrival",
+        notes: "Continue this weekend",
+        linkedGoalId: "goal-arrival",
+        createdAt: "2026-10-30T10:01:00.000"
+      },
+      {
+        id: "item-two",
+        title: "Heat",
+        status: "finished" as const,
+        completedAt: "2026-10-30T20:00:00.000",
+        createdAt: "2026-10-30T10:02:00.000"
+      }
+    ]
+  };
+  assert.deepEqual(parseGoalList(serializeGoalList(list)), normalizeLists([list])[0]);
+});
+
+test("plain Markdown checkboxes added by the user are imported", () => {
+  const items = parseListItems("- [ ] Read one article\n- [/] Course in progress\n- [x] Finished book\n");
+  assert.deepEqual(items.map((item) => [item.title, item.status]), [
+    ["Read one article", "not-finished"],
+    ["Course in progress", "in-progress"],
+    ["Finished book", "finished"]
+  ]);
 });

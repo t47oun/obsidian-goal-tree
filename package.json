@@ -1,6 +1,6 @@
 {
   "name": "obsidian-goal-tree",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "A Markdown-native system for goals, projects, tasks, habits, calendars, graphs, and personal lists.",
   "author": "Muhammad Tahoun",
   "main": "main.js",

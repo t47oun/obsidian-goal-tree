@@ -137,6 +137,9 @@ export class GoalTreeSettingTab extends PluginSettingTab {
   }
 
   private renderLists(container: HTMLElement): void {
+    new Setting(container)
+      .setName("Markdown storage")
+      .setDesc(`Each list is a normal note in ${this.host.settings.goalsFolder}/Lists and survives plugin reinstallations.`);
     new Setting(container).setName("Finished item order").setDesc("Finished items always stay below unfinished items.")
       .addDropdown((dropdown) => dropdown.addOption("manual", "Manual").addOption("newest", "Newest first")
         .addOption("oldest", "Oldest first").setValue(this.host.settings.listsFinishedOrder).onChange(async (value) => {

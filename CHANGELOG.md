@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.13.2
+
+- Rebuilt every workspace view around one compact, modern visual system for desktop, tablet, and mobile.
+- Replaced oversized Tree sections with a neutral, compact hierarchy while keeping Areas permanent and visually neutral.
+- Expanded the force graph across the available canvas with smoother zoom, wider node spacing, depth rings, touch pinch, pan, and node dragging.
+- Refined Month, Week, and Day Calendar surfaces, timed lanes, unscheduled work, and responsive navigation.
+- Unified Kanban, Lists, Review, Overview, Today, the shared inspector, dialogs, and settings with the same spacing, surfaces, controls, and responsive behavior.
+- Moved personal Lists from uninstallable plugin data to readable Markdown notes in `Goal Tree/Lists`.
+- Added automatic one-time migration of existing 0.13.1 Lists into Markdown and kept each list item’s status, notes, link, completion date, and manual order.
+- Added support for list items written directly as normal Markdown checkboxes.
+- Added clear in-app storage information so users can see that Lists survive plugin reinstallations.
+- Added tests for Markdown list round-tripping and user-authored checkboxes; the full suite now contains 38 passing tests.
+
 ## 0.13.1
 
 - Fixed the Obsidian Community Plugins review-blocking settings heading by using the native Setting.setHeading() API.

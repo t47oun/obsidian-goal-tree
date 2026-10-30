@@ -53,6 +53,8 @@ A list item can remain a simple reference or be promoted to a Goal, Project, Tas
 
 Reorder entries with the grip handle: drag it on desktop or long-press and drag it on mobile and tablet. The item menu also provides Move up and Move down. Active and finished entries have independent manual ordering, and finished entries always remain below active entries.
 
+Each list is a readable Markdown note in `Goal Tree/Lists`. Existing Lists from 0.13.1 are migrated automatically when upgrading, and reinstalling the plugin does not remove these notes.
+
 ## Status, progress, and health
 
 Leaf Tasks and Subtasks contribute 0% until completed, then 100%. Parent progress is the severity-weighted average of its active direct children. Cancelled work is excluded and hidden from Kanban.
@@ -77,7 +79,7 @@ For the simplest phone workflow, use Today, Day Calendar, Lists, and Review. Use
 
 Goal Tree items are normal Markdown notes inside the configured Goal Tree folder. Each note receives a permanent `goal-id`, readable parent link, type, status, severity, dates, recurrence fields, short notes, stable ordering, and calculated roll-up properties. Select an item to inspect or edit its short note, then choose **Open note** for the full Markdown body.
 
-Deleting an item from Goal Tree moves its note and descendants to Obsidian trash. Completed work remains visible until you archive it. Personal Lists are stored in the plugin's local Obsidian data.
+Deleting an item from Goal Tree moves its note and descendants to Obsidian trash. Completed work remains visible until you archive it. Personal Lists are stored as normal Markdown notes in `Goal Tree/Lists`.
 
 ## Installation
 

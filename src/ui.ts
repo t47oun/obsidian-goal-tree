@@ -757,6 +757,10 @@ export class GoalTreeView extends ItemView {
     const copy = heading.createDiv();
     copy.createEl("h3", { text: "Lists" });
     copy.createEl("p", { text: "Keep simple personal lists and promote any item into your Goal Tree when it becomes actionable." });
+    const storage = copy.createDiv({ cls: "goal-tree-list-storage" });
+    const storageIcon = storage.createSpan();
+    setIcon(storageIcon, "file-text");
+    storage.createSpan({ text: `Saved as Markdown in ${this.host.settings.goalsFolder}/Lists` });
     new ButtonComponent(heading).setButtonText("New list").setIcon("plus").onClick(() =>
       new ListNameModal(this.app, (title) => this.host.createList(title)).open()
     );
@@ -2837,7 +2841,7 @@ function mountForceGraph(
   svg.appendChild(scene);
 
   let width = Math.max(320, svg.parentElement?.clientWidth ?? 900);
-  let height = Math.max(420, svg.clientHeight || 560);
+  let height = Math.max(520, svg.clientHeight || 620);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
   const transform = { x: 0, y: 0, scale: 1 };
@@ -2873,7 +2877,7 @@ function mountForceGraph(
   for (const entry of entries) {
     const seed = graphSeed(entry.id);
     const angle = seed * Math.PI * 2;
-    const initialRadius = 55 + depth[entry.node.type] * 38 + graphSeed(`${entry.id}-distance`) * 45;
+    const initialRadius = 82 + depth[entry.node.type] * 64 + graphSeed(`${entry.id}-distance`) * 56;
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const selectionClass = entry.id === options.selectedId
       ? " is-selected"
@@ -2951,7 +2955,7 @@ function mountForceGraph(
         const distance = Math.sqrt(distanceSquared);
         dx /= distance;
         dy /= distance;
-        const force = 820 * alpha / distanceSquared;
+        const force = 5_600 * alpha / distanceSquared;
         if (left !== root && !left.dragging) {
           left.vx -= dx * force;
           left.vy -= dy * force;
@@ -2967,8 +2971,8 @@ function mountForceGraph(
       const dy = link.target.y - link.source.y;
       const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
       const targetDepth = link.target.entry ? depth[link.target.entry.node.type] : 0;
-      const desired = (options.spacing === "compact" ? 52 : 72) + targetDepth * 7;
-      const force = (distance - desired) * 0.025 * alpha;
+      const desired = (options.spacing === "compact" ? 78 : 104) + targetDepth * 10;
+      const force = (distance - desired) * 0.032 * alpha;
       const fx = dx / distance * force;
       const fy = dy / distance * force;
       if (link.source !== root && !link.source.dragging) {
@@ -2982,12 +2986,20 @@ function mountForceGraph(
     }
     for (const state of states) {
       if (state === root || state.dragging) continue;
-      state.vx += (width / 2 - state.x) * 0.0012 * alpha;
-      state.vy += (height / 2 - state.y) * 0.0012 * alpha;
-      state.vx *= 0.86;
-      state.vy *= 0.86;
-      state.x = Math.max(24, Math.min(width - 24, state.x + state.vx));
-      state.y = Math.max(24, Math.min(height - 24, state.y + state.vy));
+      const dx = state.x - width / 2;
+      const dy = state.y - height / 2;
+      const radialDistance = Math.max(1, Math.hypot(dx, dy));
+      const stateDepth = state.entry ? depth[state.entry.node.type] : 0;
+      const ringDistance = 86 + stateDepth * (options.spacing === "compact" ? 72 : 92);
+      const ringForce = (ringDistance - radialDistance) * 0.0055 * alpha;
+      state.vx += dx / radialDistance * ringForce;
+      state.vy += dy / radialDistance * ringForce;
+      state.vx += (width / 2 - state.x) * 0.00035 * alpha;
+      state.vy += (height / 2 - state.y) * 0.00035 * alpha;
+      state.vx *= 0.88;
+      state.vy *= 0.88;
+      state.x = Math.max(32, Math.min(width - 32, state.x + state.vx));
+      state.y = Math.max(32, Math.min(height - 32, state.y + state.vy));
     }
     alpha *= 0.986;
   };
@@ -3068,7 +3080,7 @@ function mountForceGraph(
     Object.assign(zoomTarget, transform);
   };
   const animateZoom = (): void => {
-    const smoothing = 0.2;
+    const smoothing = 0.16;
     transform.x += (zoomTarget.x - transform.x) * smoothing;
     transform.y += (zoomTarget.y - transform.y) * smoothing;
     transform.scale += (zoomTarget.scale - transform.scale) * smoothing;
@@ -3084,7 +3096,7 @@ function mountForceGraph(
     }
   };
   const smoothZoomAt = (nextScale: number, clientX?: number, clientY?: number): void => {
-    const next = Math.max(0.45, Math.min(3, nextScale));
+    const next = Math.max(0.28, Math.min(4.5, nextScale));
     const anchor = clientX === undefined || clientY === undefined
       ? { x: width / 2, y: height / 2 }
       : clientPoint(clientX, clientY);
@@ -3140,7 +3152,7 @@ function mountForceGraph(
       const nextDistance = Math.hypot(first.x - second.x, first.y - second.y);
       if (pinchDistance > 0) {
         const midpoint = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
-        transform.scale = Math.max(0.45, Math.min(3, pinchStart.scale * nextDistance / pinchDistance));
+        transform.scale = Math.max(0.28, Math.min(4.5, pinchStart.scale * nextDistance / pinchDistance));
         transform.x = midpoint.x - pinchStart.worldX * transform.scale;
         transform.y = midpoint.y - pinchStart.worldY * transform.scale;
       }
@@ -3161,12 +3173,12 @@ function mountForceGraph(
   svg.addEventListener("wheel", (event) => {
     event.preventDefault();
     const delta = Math.max(-80, Math.min(80, event.deltaY));
-    smoothZoomAt(zoomTarget.scale * Math.exp(-delta * 0.0032), event.clientX, event.clientY);
+    smoothZoomAt(zoomTarget.scale * Math.exp(-delta * 0.0022), event.clientX, event.clientY);
   }, { passive: false });
 
   const resizeObserver = new ResizeObserver(() => {
     width = Math.max(320, svg.parentElement?.clientWidth ?? width);
-    height = Math.max(420, svg.clientHeight || height);
+    height = Math.max(520, svg.clientHeight || height);
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     root.x = width / 2;
     root.y = height / 2;
