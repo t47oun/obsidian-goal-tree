@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.1
+
+- Fixed the Obsidian Community Plugins review-blocking settings heading by using the native Setting.setHeading() API.
+
 ## 0.13.0
 
 - Added one unified Obsidian-native interface across Overview, Today, Tree, Graph, Calendar, Kanban, Lists, and Review.

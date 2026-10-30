@@ -34,7 +34,7 @@ export class GoalTreeSettingTab extends PluginSettingTab {
       if (id === this.section) button.addClass("is-active");
       button.addEventListener("click", () => { this.section = id; this.display(); });
     }
-    content.createEl("h2", { text: sections.find(([id]) => id === this.section)?.[1] ?? "Settings" });
+    new Setting(content).setName(sections.find(([id]) => id === this.section)?.[1] ?? "Settings").setHeading();
     if (this.section === "general") this.renderGeneral(content);
     if (this.section === "planning") this.renderPlanning(content);
     if (this.section === "kanban") this.renderKanban(content);
