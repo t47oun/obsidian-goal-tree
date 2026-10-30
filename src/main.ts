@@ -57,13 +57,14 @@ const DEFAULT_SETTINGS: GoalTreeSettings = {
   kanbanShowTime: true,
   kanbanShowDueDate: true,
   graphMotion: true,
-  graphLabels: "selected",
+  graphLabels: "all",
   graphSpacing: "compact",
   listsFinishedOrder: "manual",
   confirmBeforeDelete: true
 };
 
 interface StoredData extends Partial<GoalTreeSettings> {
+  settingsSchemaVersion?: number;
   defaultWeight?: number;
   defaultProgressMode?: unknown;
   pomodoroState?: unknown;
@@ -82,6 +83,7 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
   private lists: GoalList[] = [];
   private legacyLists?: GoalList[];
   private listsReady = false;
+  private settingsSchemaVersion = 1;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -511,12 +513,16 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
         ? severityFromLegacyWeight(saved.defaultWeight)
         : DEFAULT_SETTINGS.defaultSeverity;
     const merged = Object.assign({}, DEFAULT_SETTINGS, saved ?? {}, { defaultSeverity });
+    if ((saved?.settingsSchemaVersion ?? 0) < 1 && saved?.graphLabels === "selected") {
+      merged.graphLabels = "all";
+    }
     delete merged.defaultWeight;
     delete merged.defaultProgressMode;
     delete merged.pomodoroState;
     delete merged.workTimerState;
     delete merged.focusSessions;
     delete merged.lists;
+    delete merged.settingsSchemaVersion;
     merged.workdays = Array.isArray(merged.workdays)
       ? [...new Set(merged.workdays.filter((value): value is number => Number.isInteger(value) && value >= 0 && value <= 6))]
       : [...DEFAULT_SETTINGS.workdays];
@@ -577,11 +583,11 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
 
   private async persistData(): Promise<void> {
     if (!this.listsReady) {
-      await this.saveData({ ...this.settings });
+      await this.saveData({ ...this.settings, settingsSchemaVersion: this.settingsSchemaVersion });
       return;
     }
     await Promise.all([
-      this.saveData({ ...this.settings }),
+      this.saveData({ ...this.settings, settingsSchemaVersion: this.settingsSchemaVersion }),
       this.listRepository.sync(this.lists)
     ]);
   }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.3
+
+- Show Graph node names by default for existing and new users.
+- Add a Graph-toolbar control for switching between all, selected, and hover labels.
+
 ## 0.13.2
 
 - Rebuilt every workspace view around one compact, modern visual system for desktop, tablet, and mobile.

@@ -126,8 +126,8 @@ export class GoalTreeSettingTab extends PluginSettingTab {
 
   private renderGraph(container: HTMLElement): void {
     this.toggle(container, "Motion", "Animate the force layout and transitions.", "graphMotion");
-    new Setting(container).setName("Labels").addDropdown((dropdown) => dropdown.addOption("selected", "Selected and connected")
-      .addOption("hover", "On hover").addOption("all", "All").setValue(this.host.settings.graphLabels).onChange(async (value) => {
+    new Setting(container).setName("Labels").addDropdown((dropdown) => dropdown.addOption("all", "All")
+      .addOption("selected", "Selected and connected").addOption("hover", "On hover").setValue(this.host.settings.graphLabels).onChange(async (value) => {
         this.host.settings.graphLabels = value as GoalTreeSettings["graphLabels"]; await this.save(true);
       }));
     new Setting(container).setName("Spacing").addDropdown((dropdown) => dropdown.addOption("compact", "Compact")

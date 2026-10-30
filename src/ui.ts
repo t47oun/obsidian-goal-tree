@@ -37,6 +37,7 @@ interface DateRange { start?: string; end?: string }
 
 export interface GoalTreeHost {
   settings: GoalTreeSettings;
+  saveSettings(): Promise<void>;
   loadSnapshot(): GoalForest;
   refreshAll(): Promise<void>;
   createGoal(input: NewGoalInput): Promise<void>;
@@ -705,6 +706,16 @@ export class GoalTreeView extends ItemView {
     depthSelect.addEventListener("change", () => {
       this.graphDepth = Number(depthSelect.value);
       void this.render(forest);
+    });
+    const labelsSelect = controls.createEl("select", { attr: { "aria-label": "Graph labels" } });
+    for (const [value, text] of [["all", "All labels"], ["selected", "Selected labels"], ["hover", "Labels on hover"]]) {
+      labelsSelect.createEl("option", { value, text });
+    }
+    labelsSelect.value = this.host.settings.graphLabels;
+    labelsSelect.addEventListener("change", async () => {
+      this.host.settings.graphLabels = labelsSelect.value as GoalTreeSettings["graphLabels"];
+      await this.host.saveSettings();
+      await this.render(forest);
     });
 
     const shell = container.createDiv({ cls: "goal-tree-graph-shell" });
