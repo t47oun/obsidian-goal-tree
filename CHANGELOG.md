@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.0
+
+- Applied one icon-led, compact Obsidian-native header and control language to Overview, Today, Tree, Graph, Calendar, Kanban, Lists, and Review.
+- Rebuilt Overview and Today with quieter metric rails, neutral Life Area surfaces, compact work rows, and visible habit and meeting markers.
+- Made Tree a denser neutral hierarchy with Expand all and Collapse all actions while keeping Areas gray and status-free.
+- Unified Calendar navigation, Month/Week/Day surfaces, draggable work, timed meetings, deadlines, and the mobile unscheduled queue.
+- Refined Kanban columns and cards with consistent status accents, project context, responsive swipe/stack behavior, and drag-to-change status.
+- Refined Markdown Lists with the same surfaces, durable storage notice, desktop drag, mobile long-press reorder, and promotion actions.
+- Added Review health metrics for overdue, at-risk, in-progress, and completed-in-range work.
+- Unified the item inspector, add/edit dialogs, list dialogs, delete confirmation, and settings navigation with the same responsive design.
+- Preserved Markdown storage, list migration, hierarchy data, habits, meetings, completion history, and all 38 tested behaviors.
+
 ## 0.13.3
 
 - Show Graph node names by default for existing and new users.

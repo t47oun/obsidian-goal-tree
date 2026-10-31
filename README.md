@@ -33,6 +33,8 @@ Areas are permanent contexts such as Work, Family, or Self Development. They hav
 
 Selecting an item in any view opens the same inspector. On desktop and tablet it appears at the right; on phones it becomes a bottom sheet. The inspector shows context, progress, health explanation, dates, recurrence, status controls, inline notes, Edit, Open note, and Delete.
 
+All eight views share the same compact icon-led header, control strips, spacing, status accents, row behavior, inspector, and responsive rules. The interface uses Obsidian theme variables, so light, dark, and custom themes remain visually consistent.
+
 ## Habits and repeating work
 
 A habit is a Task or Subtask with **Repeating task** enabled, so the hierarchy stays simple. Repeat choices include every day, configured Workdays (Sunday–Thursday by default), selected weekdays, a flexible number of times per week, every week, and every month. Preferred-day chips run from Sunday through Saturday. A repeat can continue until manually stopped or until a selected date.

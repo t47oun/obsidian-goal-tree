@@ -351,7 +351,34 @@ export class GoalTreeView extends ItemView {
     void this.host.deleteGoal(node, false);
   }
 
+  private renderViewHeading(
+    container: HTMLElement,
+    iconName: string,
+    title: string,
+    description: string
+  ): HTMLDivElement {
+    const heading = container.createDiv({ cls: "goal-tree-view-heading" });
+    const identity = heading.createDiv({ cls: "goal-tree-view-identity" });
+    const icon = identity.createDiv({ cls: "goal-tree-view-icon", attr: { "aria-hidden": "true" } });
+    setIcon(icon, iconName);
+    const copy = identity.createDiv({ cls: "goal-tree-view-copy" });
+    copy.createEl("h3", { text: title });
+    copy.createEl("p", { text: description });
+    return heading.createDiv({ cls: "goal-tree-view-actions" });
+  }
+
   private renderOverview(container: HTMLElement, forest: GoalForest): void {
+    const actions = this.renderViewHeading(
+      container,
+      "layout-dashboard",
+      "Overview",
+      "See current progress, balance across life areas, and the work that needs attention."
+    );
+    const activeGoals = forest.all.filter((node) => node.type === "goal" && !node.archived && node.metrics.status !== "cancelled");
+    actions.createSpan({
+      cls: "goal-tree-context-pill",
+      text: `${activeGoals.length} active goal${activeGoals.length === 1 ? "" : "s"}`
+    });
     this.renderSummary(container, forest);
     if (forest.all.length === 0) {
       this.renderEmptyState(container);
@@ -409,7 +436,10 @@ export class GoalTreeView extends ItemView {
       );
       const card = grid.createDiv({ cls: `goal-tree-area-card health-${area.metrics.health}` });
       const top = card.createDiv({ cls: "goal-tree-area-card-top" });
-      const title = top.createEl("button", { text: area.title, attr: { type: "button" } });
+      const identity = top.createDiv({ cls: "goal-tree-area-card-identity" });
+      const areaIcon = identity.createSpan({ cls: "goal-tree-area-card-icon", attr: { "aria-hidden": "true" } });
+      setIcon(areaIcon, "infinity");
+      const title = identity.createEl("button", { text: area.title, attr: { type: "button" } });
       title.addEventListener("click", () => this.selectNode(area));
       if (currentGoals.length === 0) {
         top.createSpan({ text: "No active goals" });
@@ -452,11 +482,14 @@ export class GoalTreeView extends ItemView {
 
   private renderToday(container: HTMLElement, forest: GoalForest): void {
     const today = todayIso();
-    const heading = container.createDiv({ cls: "goal-tree-view-heading" });
-    const copy = heading.createDiv();
-    copy.createEl("h3", { text: "Today" });
-    copy.createEl("p", { text: "Execute today's plan without losing sight of the project and goal behind it." });
-    new ButtonComponent(heading).setButtonText("Add today task").setIcon("plus").setCta().onClick(() =>
+    const actions = this.renderViewHeading(
+      container,
+      "sun",
+      "Today",
+      "Execute today's plan without losing sight of the project and goal behind it."
+    );
+    actions.createSpan({ cls: "goal-tree-context-pill", text: formatDateLabel(today) });
+    new ButtonComponent(actions).setButtonText("Add today task").setIcon("plus").setCta().onClick(() =>
       this.openItemModal(forest, undefined, "task", today)
     );
 
@@ -532,7 +565,21 @@ export class GoalTreeView extends ItemView {
     const path = ancestorTitles(node, forest);
     if (path) details.createSpan({ cls: "goal-tree-focus-task-path", text: path });
     const meta = row.createDiv({ cls: "goal-tree-compact-actions" });
-    if (node.scheduled) meta.createSpan({ text: `${node.scheduled}${node.scheduledStartTime ? ` · ${formatClockTime(node.scheduledStartTime, this.host.settings.timeFormat)}` : ""}` });
+    if (node.isMeeting) {
+      const meeting = meta.createSpan({ cls: "goal-tree-inline-kind", attr: { title: "Meeting" } });
+      setIcon(meeting, "calendar-clock");
+    }
+    if (node.recurrence !== "none") {
+      const habit = meta.createSpan({ cls: "goal-tree-inline-kind", attr: { title: recurrenceDescription(node) } });
+      setIcon(habit, "repeat-2");
+    }
+    if (node.scheduled) {
+      meta.createSpan({
+        text: `${formatDateLabel(node.scheduled)}${node.scheduledStartTime ? ` · ${formatClockTime(node.scheduledStartTime, this.host.settings.timeFormat)}` : ""}`
+      });
+    } else if (node.due) {
+      meta.createSpan({ text: `Due ${formatDateLabel(node.due)}` });
+    }
   }
 
   private renderTreeView(container: HTMLElement, forest: GoalForest): void {
@@ -540,11 +587,21 @@ export class GoalTreeView extends ItemView {
       this.renderEmptyState(container);
       return;
     }
-    const heading = container.createDiv({ cls: "goal-tree-view-heading" });
-    const text = heading.createDiv();
-    text.createEl("h3", { text: "Goal hierarchy" });
-    text.createEl("p", { text: "Drag an item onto a compatible parent to reparent it. Use Edit to change its planning model." });
-    heading.createSpan({ text: `${forest.all.length} items`, cls: "goal-tree-count-badge" });
+    const actions = this.renderViewHeading(
+      container,
+      "network",
+      "Goal hierarchy",
+      "Drag an item onto a compatible parent to reparent it. Select any row to open its details."
+    );
+    actions.createSpan({ text: `${forest.all.length} items`, cls: "goal-tree-context-pill" });
+    this.iconButton(actions, "unfold-vertical", "Expand all", () => {
+      this.collapsed.clear();
+      void this.render(this.host.loadSnapshot());
+    });
+    this.iconButton(actions, "fold-vertical", "Collapse all", () => {
+      for (const node of forest.all) if (node.children.length > 0) this.collapsed.add(node.stableId);
+      void this.render(this.host.loadSnapshot());
+    });
     const visibleRoots = forest.roots.filter((root) => this.matchesTree(root));
     if (visibleRoots.length === 0) {
       container.createDiv({ cls: "goal-tree-no-results", text: `No items match “${this.filter}”.` });
@@ -673,10 +730,13 @@ export class GoalTreeView extends ItemView {
   }
 
   private renderGraphView(container: HTMLElement, forest: GoalForest): void {
-    const heading = container.createDiv({ cls: "goal-tree-view-heading" });
-    const copy = heading.createDiv();
-    copy.createEl("h3", { text: "Goal Graph" });
-    copy.createEl("p", { text: "Explore every Area, Goal, Project, Task, and Subtask in one connected view." });
+    const actions = this.renderViewHeading(
+      container,
+      "share-2",
+      "Goal Graph",
+      "Explore every Area, Goal, Project, Task, and Subtask in one responsive connected view."
+    );
+    actions.createSpan({ text: `${forest.all.filter((node) => !node.archived).length} nodes`, cls: "goal-tree-context-pill" });
 
     const controls = container.createDiv({ cls: "goal-tree-graph-controls" });
     const areaSelect = controls.createEl("select", { attr: { "aria-label": "Filter graph by Area" } });
@@ -764,17 +824,20 @@ export class GoalTreeView extends ItemView {
   private renderListsView(container: HTMLElement, forest: GoalForest): void {
     const lists = this.host.getLists();
     if (!this.selectedListId || !lists.some((list) => list.id === this.selectedListId)) this.selectedListId = lists[0]?.id;
-    const heading = container.createDiv({ cls: "goal-tree-view-heading" });
-    const copy = heading.createDiv();
-    copy.createEl("h3", { text: "Lists" });
-    copy.createEl("p", { text: "Keep simple personal lists and promote any item into your Goal Tree when it becomes actionable." });
-    const storage = copy.createDiv({ cls: "goal-tree-list-storage" });
+    const actions = this.renderViewHeading(
+      container,
+      "list",
+      "Lists",
+      "Keep personal lists and promote any item into Goal Tree when it becomes actionable."
+    );
+    actions.createSpan({ text: `${lists.length} list${lists.length === 1 ? "" : "s"}`, cls: "goal-tree-context-pill" });
+    new ButtonComponent(actions).setButtonText("New list").setIcon("plus").onClick(() =>
+      new ListNameModal(this.app, (title) => this.host.createList(title)).open()
+    );
+    const storage = container.createDiv({ cls: "goal-tree-list-storage" });
     const storageIcon = storage.createSpan();
     setIcon(storageIcon, "file-text");
     storage.createSpan({ text: `Saved as Markdown in ${this.host.settings.goalsFolder}/Lists` });
-    new ButtonComponent(heading).setButtonText("New list").setIcon("plus").onClick(() =>
-      new ListNameModal(this.app, (title) => this.host.createList(title)).open()
-    );
     const layout = container.createDiv({ cls: "goal-tree-lists-layout" });
     const sidebar = layout.createDiv({ cls: "goal-tree-lists-sidebar" });
     for (const list of lists) {
@@ -997,11 +1060,13 @@ export class GoalTreeView extends ItemView {
   }
 
   private renderCalendarView(container: HTMLElement, forest: GoalForest): void {
-    const viewHeader = container.createDiv({ cls: "goal-tree-calendar-view-header" });
-    const viewCopy = viewHeader.createDiv();
-    viewCopy.createEl("h3", { text: "Calendar" });
-    viewCopy.createEl("p", { text: "Plan anytime work, deadlines, meetings, and repeating actions." });
-    const modes = viewHeader.createDiv({ cls: "goal-tree-calendar-modes" });
+    const actions = this.renderViewHeading(
+      container,
+      "calendar-days",
+      "Calendar",
+      "Plan anytime work, timed meetings, deadlines, and repeating actions."
+    );
+    const modes = actions.createDiv({ cls: "goal-tree-calendar-modes" });
     for (const mode of ["month", "week", "day"] as const) {
       const button = modes.createEl("button", {
         cls: this.calendarMode === mode ? "is-active" : "",
@@ -1220,17 +1285,17 @@ export class GoalTreeView extends ItemView {
       )
       .sort(compareKanbanItems);
     const unscheduledCount = allWork.filter((node) => !node.start && !node.scheduled && !node.due).length;
-    const heading = container.createDiv({ cls: "goal-tree-view-heading" });
-    const text = heading.createDiv();
-    text.createEl("h3", { text: `${kanbanScopeLabel(this.kanbanScope)} Kanban` });
-    text.createEl("p", {
-      text: "Choose any combination of Projects, Tasks, and Subtasks. Parent grouping keeps related work together."
-    });
-    heading.createSpan({
+    const actions = this.renderViewHeading(
+      container,
+      "columns-3",
+      `${kanbanScopeLabel(this.kanbanScope)} Kanban`,
+      "Move actionable work through its status while keeping project and task context visible."
+    );
+    actions.createSpan({
       text: this.host.settings.kanbanShowUnscheduled
         ? `${scheduled.length} visible`
         : `${scheduled.length} visible · ${unscheduledCount} unscheduled`,
-      cls: "goal-tree-count-badge"
+      cls: "goal-tree-context-pill"
     });
 
     const toolbar = container.createDiv({ cls: "goal-tree-kanban-toolbar" });
@@ -1478,11 +1543,13 @@ export class GoalTreeView extends ItemView {
   }
 
   private renderReviewView(container: HTMLElement, forest: GoalForest): void {
-    const heading = container.createDiv({ cls: "goal-tree-view-heading" });
-    const copy = heading.createDiv();
-    copy.createEl("h3", { text: "Review" });
-    copy.createEl("p", { text: "Understand what needs attention and keep a clear history of completed work." });
-    const modeSwitch = heading.createDiv({ cls: "goal-tree-review-mode" });
+    const actions = this.renderViewHeading(
+      container,
+      "chart-no-axes-column-increasing",
+      "Review",
+      "Understand what needs attention and keep a clear history of completed work."
+    );
+    const modeSwitch = actions.createDiv({ cls: "goal-tree-review-mode" });
     for (const mode of ["attention", "completed"] as const) {
       const button = modeSwitch.createEl("button", {
         text: mode === "attention" ? "Needs attention" : "Completed work",
@@ -1503,6 +1570,12 @@ export class GoalTreeView extends ItemView {
       value && (!range.start || value.slice(0, 10) >= range.start) && (!range.end || value.slice(0, 10) <= range.end)
     );
     const visible = forest.all.filter((node) => this.reviewTypes.has(node.type) && this.matchesNode(node));
+    const active = visible.filter((node) => !node.archived && node.metrics.status !== "completed" && node.metrics.status !== "cancelled");
+    const reviewStats = container.createDiv({ cls: "goal-tree-review-stats" });
+    this.renderReviewStat(reviewStats, "Overdue", active.filter((node) => node.metrics.health === "overdue").length, "triangle-alert", "is-danger");
+    this.renderReviewStat(reviewStats, "At risk", active.filter((node) => node.metrics.health === "at-risk").length, "shield-alert", "is-warning");
+    this.renderReviewStat(reviewStats, "In progress", active.filter((node) => node.metrics.status === "in-progress").length, "play", "is-progress");
+    this.renderReviewStat(reviewStats, "Completed in range", visible.filter((node) => node.metrics.status === "completed" && inRange(completionDateTime(node))).length, "circle-check-big", "is-success");
     const items = this.reviewMode === "completed"
       ? visible.filter((node) => node.metrics.status === "completed" && inRange(completionDateTime(node)))
         .sort((a, b) => completionDateTime(b).localeCompare(completionDateTime(a)))
@@ -1583,6 +1656,21 @@ export class GoalTreeView extends ItemView {
         void this.render(forest);
       });
     }
+  }
+
+  private renderReviewStat(
+    container: HTMLElement,
+    title: string,
+    value: number,
+    iconName: string,
+    stateClass: string
+  ): void {
+    const stat = container.createDiv({ cls: `goal-tree-review-stat ${stateClass}` });
+    const icon = stat.createSpan({ cls: "goal-tree-review-stat-icon" });
+    setIcon(icon, iconName);
+    const copy = stat.createDiv();
+    copy.createEl("strong", { text: String(value) });
+    copy.createSpan({ text: title });
   }
 
   private renderProgress(container: HTMLElement, progress: number, compact = false): void {
@@ -1809,7 +1897,7 @@ class GoalItemModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.addClass("goal-tree-modal");
-    this.modalEl.addClass("goal-tree-modal-wide");
+    this.modalEl.addClasses(["goal-tree-modal-shell", "goal-tree-modal-wide"]);
     this.updateModalTitle();
     new Setting(contentEl).setName("Title").setDesc("Use a clear outcome or action.").addText((text) => {
       text.setPlaceholder("Example: Read one page").setValue(this.titleValue).onChange((value) => { this.titleValue = value; });
@@ -2238,6 +2326,7 @@ class ListNameModal extends Modal {
 
   onOpen(): void {
     this.contentEl.addClass("goal-tree-modal");
+    this.modalEl.addClass("goal-tree-modal-shell");
     this.setTitle("New list");
     new Setting(this.contentEl).setName("Name").setDesc("Example: Movies or Technical Books").addText((text) => {
       text.setPlaceholder("List name").onChange((value) => { this.titleValue = value; });
@@ -2278,6 +2367,7 @@ class ListItemModal extends Modal {
 
   onOpen(): void {
     this.contentEl.addClass("goal-tree-modal");
+    this.modalEl.addClass("goal-tree-modal-shell");
     this.setTitle(this.titleValue ? "Edit list item" : "Add list item");
     new Setting(this.contentEl).setName("Title").addText((text) => {
       text.setPlaceholder("Item title").setValue(this.titleValue).onChange((value) => { this.titleValue = value; });
@@ -2320,6 +2410,7 @@ class DeleteGoalModal extends Modal {
 
   onOpen(): void {
     this.contentEl.addClass("goal-tree-modal");
+    this.modalEl.addClass("goal-tree-modal-shell");
     this.setTitle("Delete item");
     const childCount = descendantIds(this.node).size;
     this.contentEl.createEl("p", {
