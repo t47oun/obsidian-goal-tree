@@ -5,6 +5,7 @@ import {
   normalizeLists,
   parseGoalList,
   parseListItems,
+  reorderLists,
   reorderListItems,
   serializeGoalList,
   sortedListItems
@@ -65,6 +66,7 @@ test("list Markdown round-trips ids, statuses, notes, links, and manual order", 
     id: "list-movies",
     title: "Movies & Series",
     createdAt: "2026-10-30T10:00:00.000",
+    order: 3,
     items: [
       {
         id: "item-one",
@@ -85,6 +87,39 @@ test("list Markdown round-trips ids, statuses, notes, links, and manual order", 
     ]
   };
   assert.deepEqual(parseGoalList(serializeGoalList(list)), normalizeLists([list])[0]);
+});
+
+test("list categories can be reordered without changing their items", () => {
+  const lists = createDefaultLists().slice(0, 3);
+  const firstItem = {
+    id: "arrival",
+    title: "Arrival",
+    status: "not-finished" as const,
+    createdAt: "2026-10-30T10:01:00.000"
+  };
+  lists[0].items.push(firstItem);
+  const reordered = reorderLists(lists, lists[2].id, lists[0].id);
+  assert.deepEqual(reordered.map((list) => list.title), ["Books", "Movies", "Technical Books"]);
+  assert.deepEqual(reordered.map((list) => list.order), [0, 1, 2]);
+  assert.deepEqual(reordered[1].items, [firstItem]);
+});
+
+test("older list Markdown remains readable when it has no list-order field", () => {
+  const legacy = [
+    "---",
+    "goal-tree-list: true",
+    "list-id: \"legacy\"",
+    "list-title: \"Movies\"",
+    "list-created: \"2026-10-20T10:00:00.000\"",
+    "---",
+    "# Movies",
+    "",
+    "- [ ] Existing movie",
+    ""
+  ].join("\n");
+  const parsed = parseGoalList(legacy);
+  assert.equal(parsed?.order, Number.MAX_SAFE_INTEGER);
+  assert.equal(parsed?.items[0]?.title, "Existing movie");
 });
 
 test("plain Markdown checkboxes added by the user are imported", () => {

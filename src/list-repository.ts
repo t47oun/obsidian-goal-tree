@@ -123,13 +123,11 @@ function cloneLists(lists: GoalList[]): GoalList[] {
 }
 
 function sortLists(lists: GoalList[]): GoalList[] {
-  const defaultOrder = new Map<string, number>(DEFAULT_LIST_TITLES.map((title, index) => [title, index]));
-  return [...lists].sort((left, right) => {
-    const leftOrder = defaultOrder.get(left.title);
-    const rightOrder = defaultOrder.get(right.title);
-    if (leftOrder !== undefined || rightOrder !== undefined) {
-      return (leftOrder ?? DEFAULT_LIST_TITLES.length) - (rightOrder ?? DEFAULT_LIST_TITLES.length);
-    }
-    return left.createdAt.localeCompare(right.createdAt) || left.title.localeCompare(right.title);
-  });
+  const starterOrder = new Map<string, number>(DEFAULT_LIST_TITLES.map((title, order) => [title, order]));
+  const effectiveOrder = (list: GoalList): number => list.order < Number.MAX_SAFE_INTEGER
+    ? list.order
+    : (starterOrder.get(list.title) ?? Number.MAX_SAFE_INTEGER);
+  return [...lists]
+    .sort((left, right) => effectiveOrder(left) - effectiveOrder(right) || left.createdAt.localeCompare(right.createdAt) || left.title.localeCompare(right.title))
+    .map((list, order) => ({ ...list, order }));
 }

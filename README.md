@@ -25,8 +25,8 @@ Areas are permanent contexts such as Work, Family, or Self Development. They hav
 | Overview | Current goal progress, today totals, life balance, and attention summary |
 | Today | Planned, overdue, active, available, unscheduled, and completed actions |
 | Tree | Full hierarchy with progress, severity, health, notes, reparenting, and direct actions |
-| Graph | Responsive force graph with compact nodes, connected-branch emphasis, smooth zoom, pan, pinch, and dragging |
-| Calendar | Interactive Month, Week, and Day planning with draggable Anytime, timed, Due, and unscheduled work |
+| Graph | Interactive left-to-right hierarchy with type columns, compact labeled nodes, smooth zoom, pan, pinch, and dragging |
+| Calendar | Interactive Month, Week, and hourly Day planning with draggable All-day, timed, Due, and unscheduled work |
 | Kanban | Daily, Weekly, Monthly, Quarterly, and Yearly boards with combinable Project/Task/Subtask filters |
 | Lists | Movies, books, courses, certifications, articles, people, documentaries, podcasts, and custom lists |
 | Review | Focused Needs attention and Completed work modes with type and period filters |
@@ -53,7 +53,7 @@ New installations include Movies, Technical Books, Books, Courses, Certification
 
 A list item can remain a simple reference or be promoted to a Goal, Project, Task, or Subtask. Completion is synchronized in both directions. Finished items remain visible below unfinished items and are crossed out with their completion date.
 
-Reorder entries with the grip handle: drag it on desktop or long-press and drag it on mobile and tablet. The item menu also provides Move up and Move down. Active and finished entries have independent manual ordering, and finished entries always remain below active entries.
+Reorder both list categories and entries with their grip handles on desktop. On mobile and tablet, use each item menu's Move up and Move down actions. Active and finished entries have independent manual ordering, and finished entries always remain below active entries.
 
 Each list is a readable Markdown note in `Goal Tree/Lists`. Existing Lists from 0.13.1 are migrated automatically when upgrading, and reinstalling the plugin does not remove these notes.
 

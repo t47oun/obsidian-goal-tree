@@ -16,6 +16,7 @@ export interface GoalList {
   title: string;
   items: GoalListItem[];
   createdAt: string;
+  order: number;
 }
 
 const LIST_ITEM_MARKER = "goal-tree-list-item:";
@@ -34,7 +35,7 @@ export const DEFAULT_LIST_TITLES = [
 
 export function normalizeLists(value: unknown): GoalList[] {
   if (!Array.isArray(value)) return createDefaultLists();
-  const lists = value.flatMap((entry): GoalList[] => {
+  const lists = value.flatMap((entry, listIndex): GoalList[] => {
     if (!entry || typeof entry !== "object") return [];
     const candidate = entry as Partial<GoalList>;
     if (!candidate.id || !candidate.title || !Array.isArray(candidate.items)) return [];
@@ -42,6 +43,7 @@ export function normalizeLists(value: unknown): GoalList[] {
       id: candidate.id,
       title: candidate.title,
       createdAt: candidate.createdAt ?? localIsoDateTime(),
+      order: Number.isFinite(candidate.order) ? Number(candidate.order) : listIndex,
       items: candidate.items.flatMap((item): GoalListItem[] => {
         if (!item || typeof item !== "object") return [];
         const current = item as Partial<GoalListItem>;
@@ -68,11 +70,12 @@ export function normalizeLists(value: unknown): GoalList[] {
 }
 
 export function createDefaultLists(): GoalList[] {
-  return DEFAULT_LIST_TITLES.map((title) => ({
+  return DEFAULT_LIST_TITLES.map((title, order) => ({
     id: randomId("list"),
     title,
     items: [],
-    createdAt: localIsoDateTime()
+    createdAt: localIsoDateTime(),
+    order
   }));
 }
 
@@ -87,6 +90,7 @@ export function serializeGoalList(list: GoalList): string {
     `list-id: ${JSON.stringify(list.id)}`,
     `list-title: ${JSON.stringify(singleLine(list.title))}`,
     `list-created: ${JSON.stringify(list.createdAt)}`,
+    `list-order: ${list.order}`,
     "---",
     `# ${singleLine(list.title)}`,
     ""
@@ -112,7 +116,23 @@ export function parseGoalList(markdown: string, fallbackTitle = "List"): GoalLis
   const title = frontmatterText(markdown, "list-title") || headingTitle(markdown) || fallbackTitle;
   const id = frontmatterText(markdown, "list-id") || stableTextId("list", title);
   const createdAt = frontmatterText(markdown, "list-created") || localIsoDateTime();
-  return { id, title, createdAt, items: parseListItems(markdown) };
+  const parsedOrder = Number(frontmatterText(markdown, "list-order"));
+  return { id, title, createdAt, order: Number.isFinite(parsedOrder) ? parsedOrder : Number.MAX_SAFE_INTEGER, items: parseListItems(markdown) };
+}
+
+export function reorderLists(
+  lists: GoalList[],
+  listId: string,
+  targetListId: string,
+  placeAfter = false
+): GoalList[] {
+  if (listId === targetListId) return lists.map((list) => ({ ...list }));
+  const source = lists.find((list) => list.id === listId);
+  if (!source || !lists.some((list) => list.id === targetListId)) return lists.map((list) => ({ ...list }));
+  const reordered = lists.filter((list) => list.id !== listId);
+  const targetIndex = reordered.findIndex((list) => list.id === targetListId);
+  reordered.splice(targetIndex + (placeAfter ? 1 : 0), 0, source);
+  return reordered.map((list, order) => ({ ...list, order }));
 }
 
 export function parseListItems(markdown: string): GoalListItem[] {
@@ -221,7 +241,11 @@ function frontmatterText(markdown: string, key: string): string | undefined {
   if (!raw) return undefined;
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return optionalString(parsed);
+    return typeof parsed === "string"
+      ? optionalString(parsed)
+      : typeof parsed === "number" || typeof parsed === "boolean"
+        ? String(parsed)
+        : undefined;
   } catch {
     return raw.replace(/^['"]|['"]$/g, "").trim() || undefined;
   }

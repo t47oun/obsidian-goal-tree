@@ -20,6 +20,7 @@ import {
   localIsoDateTime as listIsoDateTime,
   normalizeLists,
   reorderListItems,
+  reorderLists,
   randomId as listRandomId
 } from "./lists";
 import { GoalListRepository } from "./list-repository";
@@ -86,14 +87,12 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
   private settingsSchemaVersion = 1;
 
   async onload(): Promise<void> {
-    await this.loadSettings();
+    // Register the public UI synchronously. Obsidian restores ribbon items and
+    // custom leaves while plugins are loading, so waiting for vault/list I/O
+    // here can leave the plugin enabled without its ribbon icon until a manual
+    // disable/enable cycle.
     this.repository = new GoalRepository(this.app, () => this.settings);
     this.listRepository = new GoalListRepository(this.app, () => this.settings.goalsFolder);
-    this.lists = await this.listRepository.load(this.legacyLists);
-    this.listsReady = true;
-    this.legacyLists = undefined;
-    await this.persistData();
-
     this.registerView(VIEW_TYPE_GOAL_TREE, (leaf) => new GoalTreeView(leaf, this));
     this.addRibbonIcon("network", "Open Goal Tree", () => void this.activateView());
     this.addSettingTab(new GoalTreeSettingTab(this.app, this));
@@ -114,6 +113,12 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
     this.addCommand({ id: "create-starter-goal-tree", name: "Create starter goal tree", callback: () => void this.createStarterTree() });
     this.addCommand({ id: "organize-goal-files", name: "Organize files into goal hierarchy", callback: () => void this.organizeGoalFiles() });
     this.addCommand({ id: "repair-goal-hierarchy", name: "Repair goal properties and identities", callback: () => void this.repairGoalHierarchy() });
+
+    await this.loadSettings();
+    this.lists = await this.listRepository.load(this.legacyLists);
+    this.listsReady = true;
+    this.legacyLists = undefined;
+    await this.persistData();
 
     const queue = (): void => this.queueRefresh();
     this.registerEvent(this.app.metadataCache.on("changed", queue));
@@ -146,13 +151,19 @@ export default class GoalTreePlugin extends Plugin implements GoalTreeHost {
     if (this.lists.some((list) => list.title.toLowerCase() === trimmed.toLowerCase())) {
       throw new Error("A list with this name already exists.");
     }
-    this.lists.push({ id: listRandomId("list"), title: trimmed, items: [], createdAt: listIsoDateTime() });
+    this.lists.push({ id: listRandomId("list"), title: trimmed, items: [], createdAt: listIsoDateTime(), order: this.lists.length });
     await this.persistData();
     await this.refreshAll();
   }
 
   async deleteList(listId: string): Promise<void> {
-    this.lists = this.lists.filter((list) => list.id !== listId);
+    this.lists = this.lists.filter((list) => list.id !== listId).map((list, order) => ({ ...list, order }));
+    await this.persistData();
+    await this.refreshAll();
+  }
+
+  async reorderList(listId: string, targetListId: string, placeAfter = false): Promise<void> {
+    this.lists = reorderLists(this.lists, listId, targetListId, placeAfter);
     await this.persistData();
     await this.refreshAll();
   }

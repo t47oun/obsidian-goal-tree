@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.1
+
+- Rebuilt all eight workspace views with the approved compact, modern, Obsidian-native visual system and consistent headers, controls, surfaces, spacing, and responsive behavior.
+- Replaced the free-floating Graph layout with an interactive left-to-right hierarchy that mirrors Tree: Area, Goal, Project, Task, and Subtask columns, visible labels, compact status dots, smooth zoom, pan, pinch, and drag.
+- Rebuilt Week and Day Calendar around an hourly schedule with separate All-day and Due strips, timed work blocks, meetings, an unscheduled queue, drag-to-schedule, and phone/tablet overflow behavior.
+- Refined Overview, Today, Tree, Kanban, Lists, and Review into denser information layouts that preserve parent context and show progress, health, habits, meetings, and attention states consistently.
+- Added persistent drag ordering for List categories on desktop, Move up/Move down controls for touch devices, and kept finished entries below active entries.
+- Added `list-order` to list Markdown and a backward-compatible migration so older list notes keep their items and expected starter-list order.
+- Registered the Goal Tree view, ribbon icon, settings, and commands before asynchronous vault loading so the ribbon icon survives an Obsidian restart.
+- Kept Life Areas neutral and preserved existing Goal Tree notes, list Markdown, habits, meetings, completion history, links, and hierarchy data.
+- Expanded the automated suite to 40 passing tests, including list-category ordering and legacy list Markdown migration.
+
 ## 0.14.0
 
 - Applied one icon-led, compact Obsidian-native header and control language to Overview, Today, Tree, Graph, Calendar, Kanban, Lists, and Review.

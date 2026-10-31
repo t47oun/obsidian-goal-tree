@@ -58,6 +58,7 @@ export interface GoalTreeHost {
   getLists(): GoalList[];
   createList(title: string): Promise<void>;
   deleteList(listId: string): Promise<void>;
+  reorderList(listId: string, targetListId: string, placeAfter?: boolean): Promise<void>;
   createListItem(listId: string, title: string, url?: string, notes?: string): Promise<void>;
   updateListItem(listId: string, itemId: string, title: string, url?: string, notes?: string): Promise<void>;
   setListItemStatus(listId: string, itemId: string, status: ListItemStatus): Promise<void>;
@@ -92,6 +93,7 @@ export class GoalTreeView extends ItemView {
   private draggedTreeId?: string;
   private draggedKanbanId?: string;
   private draggedListItemId?: string;
+  private draggedListId?: string;
   private renderSequence = 0;
   private graphCleanup?: () => void;
 
@@ -400,11 +402,42 @@ export class GoalTreeView extends ItemView {
     const completedToday = work.filter((node) => completionDateTime(node).slice(0, 10) === today).length;
     const plannedToday = work.filter((node) => isExplicitlyPlannedOn(node, today) && node.metrics.status !== "completed").length;
     const overdue = work.filter((node) => node.metrics.health === "overdue").length;
-    const summary = container.createDiv({ cls: "goal-tree-summary" });
-    this.renderSummaryCard(summary, "Current goals progress", `${currentGoalsProgress}%`, "trending-up", currentGoalsProgress);
-    this.renderSummaryCard(summary, "Planned today", String(plannedToday), "calendar-check");
-    this.renderSummaryCard(summary, "Completed today", String(completedToday), "circle-check-big");
-    this.renderSummaryCard(summary, "Overdue", String(overdue), "triangle-alert", undefined, overdue > 0);
+    const summary = container.createDiv({ cls: "goal-tree-overview-highlights" });
+    const progressCard = summary.createDiv({ cls: "goal-tree-overview-highlight goal-tree-overview-progress" });
+    const progressHeading = progressCard.createDiv({ cls: "goal-tree-overview-highlight-heading" });
+    const progressIcon = progressHeading.createSpan();
+    setIcon(progressIcon, "target");
+    const progressCopy = progressHeading.createDiv();
+    progressCopy.createEl("h4", { text: "Goals progress" });
+    progressCopy.createSpan({ text: "Progress across all current goals." });
+    const progressBody = progressCard.createDiv({ cls: "goal-tree-overview-progress-body" });
+    const ring = progressBody.createDiv({ cls: "goal-tree-progress-ring" });
+    ring.style.setProperty("--goal-tree-progress", `${currentGoalsProgress}%`);
+    ring.createEl("strong", { text: `${currentGoalsProgress}%` });
+    const progressDetails = progressBody.createDiv();
+    progressDetails.createEl("strong", { text: `${currentGoals.filter((goal) => goal.metrics.status === "completed").length} of ${currentGoals.length} goals completed` });
+    progressDetails.createSpan({ text: currentGoals.length > 0 ? "Keep the next actionable step visible." : "Create a current goal inside a life area." });
+
+    const todayCard = summary.createDiv({ cls: "goal-tree-overview-highlight goal-tree-overview-today" });
+    const todayHeading = todayCard.createDiv({ cls: "goal-tree-overview-highlight-heading" });
+    const todayIcon = todayHeading.createSpan();
+    setIcon(todayIcon, "calendar-days");
+    const todayCopy = todayHeading.createDiv();
+    todayCopy.createEl("h4", { text: "Today" });
+    todayCopy.createSpan({ text: "Tasks and goals scheduled for today." });
+    const todayMetrics = todayCard.createDiv({ cls: "goal-tree-overview-today-metrics" });
+    for (const metric of [
+      { label: "Planned", value: plannedToday, icon: "calendar-check" },
+      { label: "Completed", value: completedToday, icon: "circle-check-big" },
+      { label: "Overdue", value: overdue, icon: "triangle-alert", alert: overdue > 0 }
+    ]) {
+      const item = todayMetrics.createDiv({ cls: `goal-tree-overview-today-metric${metric.alert ? " is-alert" : ""}` });
+      const icon = item.createSpan();
+      setIcon(icon, metric.icon);
+      const copy = item.createDiv();
+      copy.createEl("strong", { text: String(metric.value) });
+      copy.createSpan({ text: metric.label });
+    }
   }
 
   private renderSummaryCard(
@@ -427,8 +460,12 @@ export class GoalTreeView extends ItemView {
   private renderOverviewAreas(container: HTMLElement, forest: GoalForest): void {
     const section = container.createDiv({ cls: "goal-tree-overview-section" });
     const heading = section.createDiv({ cls: "goal-tree-section-heading" });
-    heading.createEl("h3", { text: "Life balance" });
-    heading.createSpan({ text: "Current progress across permanent life areas" });
+    const headingIdentity = heading.createDiv({ cls: "goal-tree-section-identity" });
+    const headingIcon = headingIdentity.createSpan();
+    setIcon(headingIcon, "layers-3");
+    const headingCopy = headingIdentity.createDiv();
+    headingCopy.createEl("h3", { text: "Life areas" });
+    headingCopy.createSpan({ text: "Permanent contexts for goals and projects" });
     const grid = section.createDiv({ cls: "goal-tree-area-grid" });
     for (const area of forest.roots.filter((node) => node.type === "area")) {
       const currentGoals = area.children.filter(
@@ -441,14 +478,16 @@ export class GoalTreeView extends ItemView {
       setIcon(areaIcon, "infinity");
       const title = identity.createEl("button", { text: area.title, attr: { type: "button" } });
       title.addEventListener("click", () => this.selectNode(area));
-      if (currentGoals.length === 0) {
-        top.createSpan({ text: "No active goals" });
-      } else {
-        top.createSpan({ text: `${area.metrics.progress}% current goals` });
-        this.renderProgress(card, area.metrics.progress, true);
-      }
+      const arrow = top.createEl("button", { cls: "goal-tree-area-card-open", attr: { type: "button", "aria-label": `Open ${area.title}` } });
+      setIcon(arrow, "chevron-right");
+      arrow.addEventListener("click", () => this.selectNode(area));
+      if (currentGoals.length > 0) this.renderProgress(card, area.metrics.progress, true);
       const atRisk = currentGoals.filter((goal) => goal.metrics.health === "at-risk" || goal.metrics.health === "overdue").length;
-      card.createDiv({ cls: "goal-tree-area-time", text: atRisk > 0 ? `${atRisk} goal${atRisk === 1 ? "" : "s"} need attention` : "No goals need attention" });
+      card.createDiv({ cls: "goal-tree-area-time", text: currentGoals.length === 0
+        ? "No active goals"
+        : atRisk > 0
+          ? `${area.metrics.progress}% progress · ${atRisk} need attention`
+          : `${area.metrics.progress}% progress · On track` });
     }
   }
 
@@ -458,12 +497,12 @@ export class GoalTreeView extends ItemView {
     const todayWork = work.filter((node) => isExplicitlyPlannedOn(node, today));
     const overdue = work.filter((node) => node.metrics.health === "overdue");
     if (todayWork.length === 0 && overdue.length === 0) return;
-    const focus = container.createDiv({ cls: "goal-tree-focus-grid" });
-    if (todayWork.length > 0) this.renderFocusCard(focus, "Planned today", "calendar-check", todayWork, forest);
-    if (overdue.length > 0) this.renderFocusCard(focus, "Needs attention", "alarm-clock", overdue, forest, true);
+    const focus = container.createDiv({ cls: "goal-tree-overview-work" });
+    if (overdue.length > 0) this.renderOverviewWorkTable(focus, "Needs attention", "triangle-alert", overdue, forest, true);
+    if (todayWork.length > 0) this.renderOverviewWorkTable(focus, "Planned today", "calendar-check", todayWork, forest);
   }
 
-  private renderFocusCard(
+  private renderOverviewWorkTable(
     container: HTMLElement,
     titleText: string,
     iconName: string,
@@ -471,13 +510,31 @@ export class GoalTreeView extends ItemView {
     forest: GoalForest,
     alert = false
   ): void {
-    const card = container.createDiv({ cls: `goal-tree-focus-card${alert ? " is-alert" : ""}` });
-    const heading = card.createDiv({ cls: "goal-tree-focus-heading" });
-    const icon = heading.createSpan();
+    const section = container.createDiv({ cls: `goal-tree-overview-table${alert ? " is-alert" : ""}` });
+    const heading = section.createDiv({ cls: "goal-tree-overview-table-heading" });
+    const identity = heading.createDiv();
+    const icon = identity.createSpan();
     setIcon(icon, iconName);
-    heading.createEl("h3", { text: titleText });
+    identity.createEl("h3", { text: titleText });
+    identity.createSpan({ text: alert ? "Goals and tasks that require attention." : "Work explicitly planned for today." });
     heading.createSpan({ text: String(nodes.length), cls: "goal-tree-count" });
-    for (const node of nodes.slice(0, 6)) this.renderCompactWorkRow(card, node, forest);
+    const columnHeader = section.createDiv({ cls: "goal-tree-overview-table-columns" });
+    columnHeader.createSpan({ text: "Item" });
+    columnHeader.createSpan({ text: "Due date" });
+    columnHeader.createSpan({ text: "Status" });
+    for (const node of nodes.slice(0, 8)) {
+      const row = section.createDiv({ cls: `goal-tree-overview-table-row health-${node.metrics.health}` });
+      const check = row.createEl("button", { cls: "goal-tree-mini-check", attr: { type: "button", "aria-label": `Complete ${node.title}` } });
+      setIcon(check, node.metrics.status === "completed" ? "check" : "circle");
+      if (isLeaf(node)) check.addEventListener("click", () => void this.toggleCompleted(node));
+      else check.disabled = true;
+      const details = row.createDiv({ cls: "goal-tree-overview-table-details" });
+      const title = details.createEl("button", { text: itemDisplayTitle(node), attr: { type: "button" } });
+      title.addEventListener("click", () => this.selectNode(node));
+      details.createSpan({ text: ancestorTitles(node, forest) || label(node.type) });
+      row.createSpan({ cls: "goal-tree-overview-table-date", text: node.due ? formatDateLabel(node.due) : node.scheduled ? formatDateLabel(node.scheduled) : "No date" });
+      row.createSpan({ cls: `goal-tree-chip health-${node.metrics.health}`, text: label(node.metrics.health) });
+    }
   }
 
   private renderToday(container: HTMLElement, forest: GoalForest): void {
@@ -781,7 +838,7 @@ export class GoalTreeView extends ItemView {
     const shell = container.createDiv({ cls: "goal-tree-graph-shell" });
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Responsive force graph of the Goal Tree hierarchy");
+    svg.setAttribute("aria-label", "Interactive hierarchical graph of the Goal Tree");
     shell.appendChild(svg);
 
     const areas = forest.roots.filter((node) => node.type === "area" && (this.graphArea === "all" || node.stableId === this.graphArea));
@@ -840,16 +897,65 @@ export class GoalTreeView extends ItemView {
     storage.createSpan({ text: `Saved as Markdown in ${this.host.settings.goalsFolder}/Lists` });
     const layout = container.createDiv({ cls: "goal-tree-lists-layout" });
     const sidebar = layout.createDiv({ cls: "goal-tree-lists-sidebar" });
-    for (const list of lists) {
-      const button = sidebar.createEl("button", {
+    for (const [listIndex, list] of lists.entries()) {
+      const selector = sidebar.createDiv({
         cls: `goal-tree-list-selector${list.id === this.selectedListId ? " is-active" : ""}`,
-        attr: { type: "button" }
+        attr: { "data-list-id": list.id }
       });
+      const handle = selector.createEl("button", {
+        cls: "goal-tree-list-selector-handle",
+        attr: { type: "button", draggable: "true", "aria-label": `Reorder ${list.title}`, title: "Drag to reorder list" }
+      });
+      setIcon(handle, "grip-vertical");
+      handle.addEventListener("dragstart", (event) => {
+        this.draggedListId = list.id;
+        event.dataTransfer?.setData("text/goal-tree-list", list.id);
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        selector.addClass("is-dragging");
+      });
+      handle.addEventListener("dragend", () => {
+        this.draggedListId = undefined;
+        selector.removeClass("is-dragging");
+        sidebar.querySelectorAll(".is-drop-before, .is-drop-after").forEach((element) =>
+          element.removeClasses(["is-drop-before", "is-drop-after"]));
+      });
+      let placeAfter = false;
+      selector.addEventListener("dragover", (event) => {
+        if (!this.draggedListId || this.draggedListId === list.id) return;
+        event.preventDefault();
+        sidebar.querySelectorAll(".is-drop-before, .is-drop-after").forEach((element) =>
+          element.removeClasses(["is-drop-before", "is-drop-after"]));
+        const bounds = selector.getBoundingClientRect();
+        placeAfter = event.clientY >= bounds.top + bounds.height / 2;
+        selector.addClass(placeAfter ? "is-drop-after" : "is-drop-before");
+      });
+      selector.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const sourceId = this.draggedListId ?? event.dataTransfer?.getData("text/goal-tree-list");
+        this.draggedListId = undefined;
+        if (sourceId && sourceId !== list.id) void this.host.reorderList(sourceId, list.id, placeAfter);
+      });
+      const button = selector.createEl("button", { cls: "goal-tree-list-selector-main", attr: { type: "button" } });
       button.createSpan({ text: list.title });
       button.createSpan({ text: String(list.items.filter((item) => item.status !== "finished").length), cls: "goal-tree-count" });
       button.addEventListener("click", () => {
         this.selectedListId = list.id;
         void this.render(forest);
+      });
+      const orderMenu = selector.createEl("button", {
+        cls: "goal-tree-list-selector-menu",
+        attr: { type: "button", "aria-label": `Reorder ${list.title}` }
+      });
+      setIcon(orderMenu, "ellipsis");
+      orderMenu.addEventListener("click", (event) => {
+        const menu = new Menu();
+        const previous = lists[listIndex - 1];
+        const next = lists[listIndex + 1];
+        menu.addItem((item) => item.setTitle("Move up").setIcon("arrow-up").setDisabled(!previous)
+          .onClick(() => { if (previous) void this.host.reorderList(list.id, previous.id, false); }));
+        menu.addItem((item) => item.setTitle("Move down").setIcon("arrow-down").setDisabled(!next)
+          .onClick(() => { if (next) void this.host.reorderList(list.id, next.id, true); }));
+        menu.showAtMouseEvent(event);
       });
     }
     const list = lists.find((candidate) => candidate.id === this.selectedListId);
@@ -1201,57 +1307,91 @@ export class GoalTreeView extends ItemView {
       card.addEventListener("click", () => this.openItemModal(forest, undefined, undefined, undefined, node));
     }
     if (unscheduledItems.length === 0) unscheduled.createDiv({ cls: "goal-tree-section-empty", text: "No unscheduled tasks." });
-    const board = layout.createDiv({ cls: `goal-tree-schedule-board mode-${this.calendarMode}` });
+    const board = layout.createDiv({ cls: `goal-tree-time-grid mode-${this.calendarMode}` });
+    board.style.setProperty("--goal-tree-day-count", String(days.length));
+    const header = board.createDiv({ cls: "goal-tree-time-grid-header" });
+    header.createDiv({ cls: "goal-tree-time-grid-corner" });
     for (const day of days) {
       const iso = localDateIso(day);
-      const dayColumn = board.createDiv({ cls: `goal-tree-schedule-day${iso === todayIso() ? " is-today" : ""}` });
-      dayColumn.addEventListener("dragover", (event) => event.preventDefault());
-      dayColumn.addEventListener("drop", (event) => {
+      const dayHeader = header.createDiv({ cls: `goal-tree-time-grid-day${iso === todayIso() ? " is-today" : ""}` });
+      const copy = dayHeader.createDiv();
+      copy.createSpan({ text: day.toLocaleDateString("en-US", { weekday: "short" }) });
+      copy.createEl("strong", { text: day.toLocaleDateString("en-US", { month: "short", day: "numeric" }) });
+      const add = dayHeader.createEl("button", { attr: { type: "button", "aria-label": `Add task on ${iso}` } });
+      setIcon(add, "plus");
+      add.addEventListener("click", () => this.openItemModal(forest, undefined, "task", iso));
+    }
+    for (const strip of [
+      { label: "All-day", due: false },
+      { label: "Due", due: true }
+    ]) {
+      const row = board.createDiv({ cls: `goal-tree-time-grid-strip${strip.due ? " is-due" : ""}` });
+      row.createDiv({ cls: "goal-tree-time-grid-strip-label", text: strip.label });
+      for (const day of days) {
+        const iso = localDateIso(day);
+        const nodes = strip.due
+          ? forest.all.filter((node) => node.type !== "area" && !node.archived && node.metrics.status !== "completed" && node.due === iso)
+          : openWork.filter((node) => node.scheduled === iso && !node.scheduledStartTime);
+        this.renderCalendarStripCell(row, nodes, forest, iso, strip.due);
+      }
+    }
+    const startHour = 8;
+    const endHour = 20;
+    const totalMinutes = (endHour - startHour) * 60;
+    const timeBody = board.createDiv({ cls: "goal-tree-time-grid-body" });
+    const timeAxis = timeBody.createDiv({ cls: "goal-tree-time-axis" });
+    for (let hour = startHour; hour <= endHour; hour += 1) {
+      timeAxis.createSpan({ text: formatClockTime(`${String(hour).padStart(2, "0")}:00`, this.host.settings.timeFormat) });
+    }
+    for (const day of days) {
+      const iso = localDateIso(day);
+      const column = timeBody.createDiv({ cls: `goal-tree-time-column${iso === todayIso() ? " is-today" : ""}` });
+      column.addEventListener("dragover", (event) => event.preventDefault());
+      column.addEventListener("drop", (event) => {
         event.preventDefault();
         const stableId = event.dataTransfer?.getData("text/goal-tree-id");
         const node = stableId ? forest.all.find((candidate) => candidate.stableId === stableId) : undefined;
         if (node) void this.host.scheduleGoal(node, iso);
       });
-      const dayHeader = dayColumn.createDiv({ cls: "goal-tree-schedule-day-header" });
-      dayHeader.createSpan({ text: day.toLocaleDateString("en-US", { weekday: "short" }) });
-      dayHeader.createEl("strong", { text: String(day.getDate()) });
-      const add = dayHeader.createEl("button", { attr: { type: "button", "aria-label": `Add task on ${iso}` } });
-      setIcon(add, "plus");
-      add.addEventListener("click", () => this.openItemModal(forest, undefined, "task", iso));
-      const planned = openWork.filter((node) => node.scheduled === iso);
-      const anytime = planned.filter((node) => !node.scheduledStartTime);
-      const timed = planned.filter((node) => Boolean(node.scheduledStartTime));
-      const due = forest.all.filter((node) => node.type !== "area" && !node.archived && node.metrics.status !== "completed" && node.due === iso);
-      this.renderCalendarLane(dayColumn, "Anytime", anytime, forest, false, iso);
-      this.renderCalendarLane(dayColumn, "Due", due, forest, true, iso);
-      const timedLane = dayColumn.createDiv({ cls: "goal-tree-calendar-lane timed" });
-      timedLane.createDiv({ cls: "goal-tree-calendar-lane-title", text: "Schedule" });
+      column.addEventListener("dblclick", () => this.openItemModal(forest, undefined, "task", iso));
+      const timed = openWork.filter((node) => node.scheduled === iso && Boolean(node.scheduledStartTime));
       for (const node of timed.sort((a, b) => (a.scheduledStartTime ?? "").localeCompare(b.scheduledStartTime ?? ""))) {
-        const item = timedLane.createEl("button", { cls: `goal-tree-calendar-block health-${node.metrics.health}`, attr: { type: "button" } });
-        item.createEl("strong", { text: node.title });
+        const startMinutes = Math.max(startHour * 60, Math.min(endHour * 60, clockMinutes(node.scheduledStartTime ?? `${startHour}:00`)));
+        const endMinutes = Math.max(startMinutes + 30, Math.min(endHour * 60, clockMinutes(node.scheduledEndTime ?? "") || startMinutes + (node.plannedMinutes ?? 60)));
+        const item = column.createEl("button", {
+          cls: `goal-tree-calendar-block health-${node.metrics.health}${node.isMeeting ? " is-meeting" : ""}`,
+          attr: { type: "button", title: fullPathTitle(node, forest) }
+        });
+        item.style.setProperty("--goal-tree-calendar-top", `${(startMinutes - startHour * 60) / totalMinutes * 100}%`);
+        item.style.setProperty("--goal-tree-calendar-height", `${Math.max(4.5, (endMinutes - startMinutes) / totalMinutes * 100)}%`);
+        item.createEl("strong", { text: itemDisplayTitle(node) });
         item.createSpan({ text: `${formatClockTime(node.scheduledStartTime ?? "", this.host.settings.timeFormat)}–${formatClockTime(node.scheduledEndTime ?? "", this.host.settings.timeFormat)}` });
-        item.createSpan({ text: ancestorTitles(node, forest), cls: "goal-tree-calendar-block-path" });
         item.draggable = true;
         item.addEventListener("dragstart", (event) => event.dataTransfer?.setData("text/goal-tree-id", node.stableId));
         item.addEventListener("click", () => this.selectNode(node));
       }
-      if (timed.length === 0) timedLane.createDiv({ cls: "goal-tree-calendar-lane-empty", text: "No timed work" });
     }
   }
 
-  private renderCalendarLane(
+  private renderCalendarStripCell(
     container: HTMLElement,
-    title: string,
     nodes: GoalNode[],
     forest: GoalForest,
-    due: boolean,
-    date: string
+    date: string,
+    due: boolean
   ): void {
-    const lane = container.createDiv({ cls: `goal-tree-calendar-lane${due ? " due" : ""}` });
-    lane.createDiv({ cls: "goal-tree-calendar-lane-title", text: title });
+    const cell = container.createDiv({ cls: "goal-tree-time-grid-strip-cell" });
+    cell.addEventListener("dragover", (event) => event.preventDefault());
+    cell.addEventListener("drop", (event) => {
+      if (due) return;
+      event.preventDefault();
+      const stableId = event.dataTransfer?.getData("text/goal-tree-id");
+      const node = stableId ? forest.all.find((candidate) => candidate.stableId === stableId) : undefined;
+      if (node) void this.host.scheduleGoal(node, date);
+    });
     const unique = [...new Map(nodes.map((node) => [node.stableId, node])).values()];
     for (const node of unique) {
-      const item = lane.createEl("button", { cls: `goal-tree-calendar-lane-item health-${node.metrics.health}`, attr: { type: "button" } });
+      const item = cell.createEl("button", { cls: `goal-tree-calendar-lane-item health-${node.metrics.health}`, attr: { type: "button" } });
       const icon = item.createSpan();
       setIcon(icon, due ? "flag" : node.recurrence !== "none" ? "repeat-2" : "circle");
       item.createSpan({ text: itemDisplayTitle(node) });
@@ -1264,7 +1404,6 @@ export class GoalTreeView extends ItemView {
       });
       item.setAttr("title", `${fullPathTitle(node, forest)} · ${date}`);
     }
-    if (unique.length === 0) lane.createDiv({ cls: "goal-tree-calendar-lane-empty", text: "None" });
   }
 
   private renderKanbanView(container: HTMLElement, forest: GoalForest): void {
@@ -2686,6 +2825,11 @@ function minutesBetweenTimes(start: string, end: string): number {
   return Math.max(0, endHour * 60 + endMinute - startHour * 60 - startMinute);
 }
 
+function clockMinutes(value: string): number {
+  const [hour, minute] = value.split(":").map(Number);
+  return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0;
+}
+
 function weekStartIndex(value: GoalTreeSettings["weekStartsOn"]): number {
   if (value === "monday") return 1;
   if (value === "saturday") return 6;
@@ -2894,6 +3038,8 @@ interface ForceGraphNodeState {
   entry?: ForceGraphEntry;
   x: number;
   y: number;
+  targetX: number;
+  targetY: number;
   vx: number;
   vy: number;
   dragging: boolean;
@@ -2937,9 +3083,11 @@ function mountForceGraph(
   options: ForceGraphOptions
 ): { zoomIn: () => void; zoomOut: () => void; reset: () => void; destroy: () => void } {
   const scene = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const guideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  guideLayer.setAttribute("class", "goal-tree-graph-guides");
   const edgeLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
   const nodeLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  scene.append(edgeLayer, nodeLayer);
+  scene.append(guideLayer, edgeLayer, nodeLayer);
   svg.appendChild(scene);
 
   let width = Math.max(320, svg.parentElement?.clientWidth ?? 900);
@@ -2950,6 +3098,59 @@ function mountForceGraph(
   const updateTransform = (): void => {
     scene.setAttribute("transform", `translate(${transform.x} ${transform.y}) scale(${transform.scale})`);
   };
+  const depth: Record<GoalType, number> = { area: 0, goal: 1, project: 2, task: 3, subtask: 4 };
+  const columnLabels = ["Area", "Goal", "Project", "Task", "Subtask"];
+  const levelGap = options.spacing === "compact" ? 230 : 280;
+  const rowGap = options.spacing === "compact" ? 48 : 60;
+  const horizontalPadding = 76;
+  const verticalPadding = 72;
+  const childrenByParent = new Map<string, ForceGraphEntry[]>();
+  for (const entry of entries) {
+    const children = childrenByParent.get(entry.parentId) ?? [];
+    children.push(entry);
+    childrenByParent.set(entry.parentId, children);
+  }
+  let leafIndex = 0;
+  const targetYById = new Map<string, number>();
+  const assignY = (entry: ForceGraphEntry): number => {
+    const children = childrenByParent.get(entry.id) ?? [];
+    const y = children.length > 0
+      ? children.map(assignY).reduce((total, value) => total + value, 0) / children.length
+      : verticalPadding + leafIndex++ * rowGap;
+    targetYById.set(entry.id, y);
+    return y;
+  };
+  const roots = childrenByParent.get("root") ?? [];
+  roots.forEach(assignY);
+  const contentWidth = horizontalPadding * 2 + 4 * levelGap;
+  const naturalContentHeight = verticalPadding * 2 + Math.max(0, leafIndex - 1) * rowGap;
+  const contentHeight = Math.max(360, naturalContentHeight);
+  const verticalOffset = (contentHeight - naturalContentHeight) / 2;
+  for (const [id, y] of targetYById) targetYById.set(id, y + verticalOffset);
+  const rootY = roots.length > 0
+    ? roots.map((entry) => targetYById.get(entry.id) ?? verticalPadding).reduce((total, value) => total + value, 0) / roots.length
+    : contentHeight / 2;
+  for (let level = 0; level <= 4; level += 1) {
+    const x = horizontalPadding + level * levelGap;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("class", "goal-tree-graph-level");
+    line.setAttribute("x1", String(x));
+    line.setAttribute("x2", String(x));
+    line.setAttribute("y1", "54");
+    line.setAttribute("y2", String(contentHeight - 28));
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("class", "goal-tree-graph-level-label");
+    text.setAttribute("x", String(x));
+    text.setAttribute("y", "26");
+    text.textContent = columnLabels[level];
+    const count = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    count.setAttribute("class", "goal-tree-graph-level-count");
+    count.setAttribute("x", String(x));
+    count.setAttribute("y", "42");
+    count.textContent = `${entries.filter((entry) => depth[entry.node.type] === level).length} items`;
+    guideLayer.append(line, text, count);
+  }
+
   const rootElement = document.createElementNS("http://www.w3.org/2000/svg", "g");
   rootElement.setAttribute("class", "goal-tree-graph-root");
   const rootDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -2958,8 +3159,10 @@ function mountForceGraph(
   nodeLayer.appendChild(rootElement);
   const root: ForceGraphNodeState = {
     id: "root",
-    x: width / 2,
-    y: height / 2,
+    x: 26,
+    y: rootY,
+    targetX: 26,
+    targetY: rootY,
     vx: 0,
     vy: 0,
     dragging: false,
@@ -2967,7 +3170,6 @@ function mountForceGraph(
   };
   const states = [root];
   const byId = new Map<string, ForceGraphNodeState>([[root.id, root]]);
-  const depth: Record<GoalType, number> = { area: 0, goal: 1, project: 2, task: 3, subtask: 4 };
   const connectedIds = new Set<string>();
   if (options.selectedId) {
     connectedIds.add(options.selectedId);
@@ -2978,8 +3180,8 @@ function mountForceGraph(
 
   for (const entry of entries) {
     const seed = graphSeed(entry.id);
-    const angle = seed * Math.PI * 2;
-    const initialRadius = 82 + depth[entry.node.type] * 64 + graphSeed(`${entry.id}-distance`) * 56;
+    const targetX = horizontalPadding + depth[entry.node.type] * levelGap;
+    const targetY = targetYById.get(entry.id) ?? contentHeight / 2;
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const selectionClass = entry.id === options.selectedId
       ? " is-selected"
@@ -3004,8 +3206,10 @@ function mountForceGraph(
     const state: ForceGraphNodeState = {
       id: entry.id,
       entry,
-      x: width / 2 + Math.cos(angle) * initialRadius,
-      y: height / 2 + Math.sin(angle) * initialRadius,
+      x: targetX - 32 + seed * 64,
+      y: targetY - 22 + graphSeed(`${entry.id}-y`) * 44,
+      targetX,
+      targetY,
       vx: 0,
       vy: 0,
       dragging: false,
@@ -3043,8 +3247,8 @@ function mountForceGraph(
     }
   };
   const physicsStep = (): void => {
-    root.x = width / 2;
-    root.y = height / 2;
+    root.x = root.targetX;
+    root.y = root.targetY;
     root.vx = 0;
     root.vy = 0;
     for (let index = 0; index < states.length; index += 1) {
@@ -3057,7 +3261,7 @@ function mountForceGraph(
         const distance = Math.sqrt(distanceSquared);
         dx /= distance;
         dy /= distance;
-        const force = 5_600 * alpha / distanceSquared;
+        const force = 1_850 * alpha / distanceSquared;
         if (left !== root && !left.dragging) {
           left.vx -= dx * force;
           left.vy -= dy * force;
@@ -3072,9 +3276,8 @@ function mountForceGraph(
       const dx = link.target.x - link.source.x;
       const dy = link.target.y - link.source.y;
       const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-      const targetDepth = link.target.entry ? depth[link.target.entry.node.type] : 0;
-      const desired = (options.spacing === "compact" ? 78 : 104) + targetDepth * 10;
-      const force = (distance - desired) * 0.032 * alpha;
+      const desired = link.source === root ? horizontalPadding - root.targetX : levelGap;
+      const force = (distance - desired) * 0.006 * alpha;
       const fx = dx / distance * force;
       const fy = dy / distance * force;
       if (link.source !== root && !link.source.dragging) {
@@ -3088,20 +3291,12 @@ function mountForceGraph(
     }
     for (const state of states) {
       if (state === root || state.dragging) continue;
-      const dx = state.x - width / 2;
-      const dy = state.y - height / 2;
-      const radialDistance = Math.max(1, Math.hypot(dx, dy));
-      const stateDepth = state.entry ? depth[state.entry.node.type] : 0;
-      const ringDistance = 86 + stateDepth * (options.spacing === "compact" ? 72 : 92);
-      const ringForce = (ringDistance - radialDistance) * 0.0055 * alpha;
-      state.vx += dx / radialDistance * ringForce;
-      state.vy += dy / radialDistance * ringForce;
-      state.vx += (width / 2 - state.x) * 0.00035 * alpha;
-      state.vy += (height / 2 - state.y) * 0.00035 * alpha;
-      state.vx *= 0.88;
-      state.vy *= 0.88;
-      state.x = Math.max(32, Math.min(width - 32, state.x + state.vx));
-      state.y = Math.max(32, Math.min(height - 32, state.y + state.vy));
+      state.vx += (state.targetX - state.x) * 0.055 * alpha;
+      state.vy += (state.targetY - state.y) * 0.055 * alpha;
+      state.vx *= 0.82;
+      state.vy *= 0.82;
+      state.x = Math.max(30, Math.min(contentWidth - 30, state.x + state.vx));
+      state.y = Math.max(46, Math.min(contentHeight - 24, state.y + state.vy));
     }
     alpha *= 0.986;
   };
@@ -3164,6 +3359,10 @@ function mountForceGraph(
       state.dragging = false;
       group.classList.remove("is-dragging");
       if (group.hasPointerCapture(event.pointerId)) group.releasePointerCapture(event.pointerId);
+      if (moved) {
+        state.targetX = state.x;
+        state.targetY = state.y;
+      }
       if (openWhenTapped && !moved && state.entry) openNode(state.entry.node);
       reheat(0.18);
     };
@@ -3173,6 +3372,17 @@ function mountForceGraph(
       if ((event.key === "Enter" || event.key === " ") && state.entry) openNode(state.entry.node);
     });
   }
+
+  const fittedTransform = (): { x: number; y: number; scale: number } => {
+    const scale = Math.max(0.28, Math.min(1, (width - 36) / contentWidth, (height - 36) / contentHeight));
+    return {
+      x: Math.max(18, (width - contentWidth * scale) / 2),
+      y: Math.max(18, (height - contentHeight * scale) / 2),
+      scale
+    };
+  };
+  Object.assign(transform, fittedTransform());
+  updateTransform();
 
   let zoomFrame = 0;
   const zoomTarget = { ...transform };
@@ -3282,8 +3492,10 @@ function mountForceGraph(
     width = Math.max(320, svg.parentElement?.clientWidth ?? width);
     height = Math.max(520, svg.clientHeight || height);
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    root.x = width / 2;
-    root.y = height / 2;
+    const fitted = fittedTransform();
+    Object.assign(transform, fitted);
+    Object.assign(zoomTarget, fitted);
+    updateTransform();
     reheat(0.28);
   });
   resizeObserver.observe(svg.parentElement ?? svg);
@@ -3299,9 +3511,7 @@ function mountForceGraph(
     zoomIn: () => smoothZoomAt(zoomTarget.scale * 1.2),
     zoomOut: () => smoothZoomAt(zoomTarget.scale / 1.2),
     reset: () => {
-      zoomTarget.x = 0;
-      zoomTarget.y = 0;
-      zoomTarget.scale = 1;
+      Object.assign(zoomTarget, fittedTransform());
       if (!zoomFrame) zoomFrame = window.requestAnimationFrame(animateZoom);
       reheat(0.3);
     },
